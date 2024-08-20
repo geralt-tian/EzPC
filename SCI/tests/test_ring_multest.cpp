@@ -31,7 +31,7 @@ SOFTWARE.
 
 #include "Millionaire/millionaire.h"
 #include "Millionaire/millionaire_with_equality.h"
-
+#include "BuildingBlocks/truncation.h"
 #include "BuildingBlocks/aux-protocols.h"
 using namespace sci;
 using namespace std;
@@ -61,184 +61,37 @@ uint64_t maskC = (bwC == 64 ? -1 : ((1ULL << bwC) - 1));
 /////////////////////compare_with_eq
 int bitlength = 64; // 假设每个数是32位
 int radix_base = 4; // 基数为4
+uint64_t alpha=4;
+uint64_t alpha_=2^14;
+uint64_t beta=alpha_*2;
+uint64_t h=15;
 
+Truncation *trunc_oracle;
 //////////////////////////MUX
 AuxProtocols *aux;
 
 
+void assign_lower_h_bits(int32_t dim1, int32_t dim2, int32_t dim3, uint64_t *inA, uint64_t *inB, uint64_t *inA_, uint64_t *inB_, int32_t h) {
+    // Create a mask that has the lowest h bits set to 1
+    uint64_t mask = (h == 64) ? ~0ULL : (1ULL << h) - 1;
 
+    // Assign the lower h bits from inA to inA_
+    for (int i = 0; i < dim1; i++) {
+        for (int j = 0; j < dim2; j++) {
+            inA_[i * dim2 + j] = inA[i * dim2 + j] & mask;
+        }
+    }
+
+    // Assign the lower h bits from inB to inB_
+    for (int i = 0; i < dim2; i++) {
+        for (int j = 0; j < dim3; j++) {
+            inB_[i * dim3 + j] = inB[i * dim3 + j] & mask;
+        }
+    }
+}
 
 //////////////////////
 //初始化
-void test_matrix_multiplication(uint64_t *inA, uint64_t *inB,uint64_t *outC,
-                                bool signed_arithmetic = true) {
-  int dim = (::accumulate ? dim1 * dim3 : dim1 * dim2 * dim3);
-  //uint64_t *outC = new uint64_t[dim];//存储结果
-
-  INIT_TIMER;
-  START_TIMER;
-  uint8_t *msbA = nullptr;
-  uint8_t *msbB = nullptr;
-  if (precomputed_MSBs) { //预计算MSB
-    msbA = new uint8_t[dim1 * dim2];
-    msbB = new uint8_t[dim2 * dim3];
-    prod->aux->MSB(inA, msbA, dim1 * dim2, bwA);
-    prod->aux->MSB(inB, msbB, dim2 * dim3, bwB);
-  }
-  uint64_t num_rounds = iopack->get_rounds();
-  uint64_t comm_start = iopack->get_comm();
-  prod->matrix_multiplication(dim1, dim2, dim3, inA, inB, outC, bwA, bwB, bwC,
-                              signed_arithmetic, signed_B, ::accumulate, mode,
-                              msbA, msbB);
-  if (precomputed_MSBs) {
-    delete[] msbA;
-    delete[] msbB;
-  }
-  uint64_t comm_end = iopack->get_comm();
-  cout << "Bytes Sent: " << (comm_end - comm_start) << endl;
-  num_rounds = iopack->get_rounds() - num_rounds;
-  cout << "Num rounds: " << num_rounds << endl;
-  STOP_TIMER("Total time for matmul");
-
-  if (party == ALICE) {//将inA、inB和outC发送给BOB
-    iopack->io->send_data(inA, dim1 * dim2 * sizeof(uint64_t));
-    //std::cout << "inA[" << 0 << "] = " << inA[0] << std::endl;
-    iopack->io->send_data(inB, dim2 * dim3 * sizeof(uint64_t));
-    iopack->io->send_data(outC, dim * sizeof(uint64_t));
-  } else { // party == BOB   接收这些矩阵，然后使用prod->matmul_cleartext重新计算明文矩阵乘法，以验证结果是否正确
-    uint64_t *inA0 = new uint64_t[dim1 * dim2];
-    uint64_t *inB0 = new uint64_t[dim2 * dim3];
-    uint64_t *outC0 = new uint64_t[dim];
-    iopack->io->recv_data(inA0, dim1 * dim2 * sizeof(uint64_t));
-    iopack->io->recv_data(inB0, dim2 * dim3 * sizeof(uint64_t));
-    iopack->io->recv_data(outC0, dim * sizeof(uint64_t));
-
-//////////////////在这一段A0和B0都翻倍了
-
-    int extra_bits = (::accumulate ? ceil(log2(dim2)) : 0);
-    uint64_t *res = new uint64_t[dim];
-    for (int i = 0; i < dim1 * dim2; i++) {
-      if (signed_arithmetic) {
-        if (mode == MultMode::Alice_has_A) {
-          inA0[i] = signed_val(inA0[i], bwA);
-        } else if (mode == MultMode::Bob_has_A) {
-          inA0[i] = signed_val(inA[i], bwA);
-        } else {
-          inA0[i] = signed_val(inA0[i] + inA[i], bwA);
-        }
-      } else {
-        if (mode == MultMode::Alice_has_A) {
-          inA0[i] = unsigned_val(inA0[i], bwA);
-        } else if (mode == MultMode::Bob_has_A) {
-          inA0[i] = unsigned_val(inA[i], bwA);
-        } else {
-          inA0[i] = unsigned_val(inA0[i] + inA[i], bwA);
-        }
-      }
-    }
-//////////////////
-    for (int i = 0; i < dim2 * dim3; i++) {
-      if (signed_arithmetic && signed_B) {
-        if (mode == MultMode::Alice_has_B) {
-          inB0[i] = signed_val(inB0[i], bwB);
-        } else if (mode == MultMode::Bob_has_B) {
-          inB0[i] = signed_val(inB[i], bwB);
-        } else {
-          inB0[i] = signed_val(inB0[i] + inB[i], bwB);
-        }
-      } else {
-        if (mode == MultMode::Alice_has_B) {
-          inB0[i] = unsigned_val(inB0[i], bwB);
-        } else if (mode == MultMode::Bob_has_B) {
-          inB0[i] = unsigned_val(inB[i], bwB);
-        } else {
-          inB0[i] = unsigned_val(inB0[i] + inB[i], bwB);
-        }
-      }
-    }
-
-    std::cout << "inA0[" << 0 << "] = " << inA0[0] << std::endl;
-    std::cout << "inB0[" << 0 << "] = " << inB0[0] << std::endl;
-    prod->matmul_cleartext(dim1, dim2, dim3, inA0, inB0, res, ::accumulate);
-    std::cout << "res[" << 0 << "] = " << res[0] << std::endl;
-    std::cout << "extra_bits = " << extra_bits << std::endl;
-
-    for (int i = 0; i < dim; i++) {
-      if (signed_arithmetic) {
-        assert(signed_val(res[i] >> extra_bits, bwC) ==
-               signed_val(outC[i] + outC0[i], bwC));
-      } else {
-        assert(unsigned_val(res[i] >> extra_bits, bwC) ==
-               unsigned_val(outC[i] + outC0[i], bwC));
-      }
-    }
-    if (signed_arithmetic)
-      cout << "SMult Tests Passed" << endl;
-    else
-      cout << "UMult Tests Passed" << endl;
-    //释放内存
-    delete[] inA0;
-    delete[] inB0;
-    delete[] outC0;
-    delete[] res;
-  }
-
-  //delete[] outC;
-}
-
-////////////////////test_mux
-void test_mux(uint8_t *sel, uint64_t *x,uint64_t *y) { //  根据选择信号 sel 来选择输入信号 x 或 y 之一作为输出
-  int bw_x = 32, bw_y = 32;
-  PRG128 prg;
-  uint64_t mask_x = (bw_x == 64 ? -1 : ((1ULL << bw_x) - 1));
-  uint64_t mask_y = (bw_y == 64 ? -1 : ((1ULL << bw_y) - 1));
-
-//   uint8_t *sel = new uint8_t[dim1];
-//   uint64_t *x = new uint64_t[dim1];
-//   uint64_t *y = new uint64_t[dim1];
-
-//   prg.random_data(sel, dim1 * sizeof(uint8_t));
-//   prg.random_data(x, dim1 * sizeof(uint64_t));
-  for (int i = 0; i < dim1; i++) {
-    sel[i] = sel[i] & 1;
-    x[i] = x[i] & mask_x;
-  }
-  std::cout << "x[" << 0 << "] =" << x[0] << std::endl;
-  aux->multiplexer(sel, x, y, dim1, bw_x, bw_y);
-
-  if (party == ALICE) {
-    iopack->io->send_data(sel, dim1 * sizeof(uint8_t));
-    iopack->io->send_data(x, dim1 * sizeof(uint64_t));
-    iopack->io->send_data(y, dim1 * sizeof(uint64_t));
-    std::cout << "sel[" << 0 << "] =" << sel[0] << std::endl;
-    std::cout << "x[" << 0 << "] =" << x[0] << std::endl;
-    std::cout << "y[" << 0 << "] =" << y[0] << std::endl;
-  } else {
-    uint8_t *sel0 = new uint8_t[dim1];
-    uint64_t *x0 = new uint64_t[dim1];
-    uint64_t *y0 = new uint64_t[dim1];
-    iopack->io->recv_data(sel0, dim1 * sizeof(uint8_t));
-    iopack->io->recv_data(x0, dim1 * sizeof(uint64_t));
-    iopack->io->recv_data(y0, dim1 * sizeof(uint64_t));
-
-    std::cout << "sel0[" << 0 << "] =" << sel0[0] << std::endl;
-    std::cout << "x0[" << 0 << "] =" << x0[0] << std::endl;
-    std::cout << "y0[" << 0 << "] =" << y0[0] << std::endl;
-
-    for (int i = 0; i < dim1; i++) {
-      assert(((uint64_t(sel0[i] ^ sel[i]) * (x0[i] + x[i])) & mask_y) ==
-             ((y0[i] + y[i]) & mask_y));
-    }
-    cout << "MUX Tests passed" << endl;
-
-    delete[] sel0;
-    delete[] x0;
-    delete[] y0;
-  }
-  delete[] sel;
-  delete[] x;
-  delete[] y;
-}
 ///////////////////////////////
 
 int main(int argc, char **argv) {
@@ -265,21 +118,40 @@ int main(int argc, char **argv) {
   //prg.random_data(inA, dim1 * dim2 * sizeof(uint64_t));
   //prg.random_data(inB, dim2 * dim3 * sizeof(uint64_t));
   
-  inA[0] = 1;
+  inA[0] = 32767;
   inB[0] = 10;
+//   step2
+//   inA[0] = inA[0]+alpha_;
+//   inB[0] = inB[0]+alpha_;
+//step5
+    uint64_t *inA_ = new uint64_t[dim1 * dim2];//1*100
+    uint64_t *inB_ = new uint64_t[dim2 * dim3];//100*35
 
+    assign_lower_h_bits(dim1, dim2, dim3, inA, inB, inA_, inB_, h);
   /////////////////////////
-    std::cout << "Generated random data for inB:" << std::endl;
-    for (int i = 0; i < dim1 * dim2; i++) {
-        std::cout << "inA[" << i << "] = " <<  inA[i] << std::endl;
+//     std::cout << "Generated random data for inB:" << std::endl;
+//     for (int i = 0; i < dim1 * dim2; i++) {
+//         std::cout << "inA[" << i << "] = " <<  inA[i] << std::endl;
+//     }
+//     std::cout << "Generated random data for inB:" << std::endl;
+//     for (int i = 0; i < dim1 * dim2; i++) {
+//         std::cout << "inB[" << i << "] = " << inB[i] << std::endl;
+//     }
+//   /////////////////////////
+    std::cout << "inA_[" << 0 << "] = " <<  inA_[0] << std::endl;
+    std::cout << "inB_[" << 0 << "] = " <<  inB_[0] << std::endl;
+//step6
+    
+    trunc_oracle = new Truncation(party, iopack, otpack);
+    uint64_t *outtrunc = new uint64_t[dim];
+        if (party == ALICE) {
+        trunc_oracle->truncate_and_reduce(dim, inA_, outtrunc, 10, 15);//shift=h-s,hypothesis s=5
+        std::cout << "outtrunc[" << 0 << "] = " << outtrunc[0] << std::endl;
+    } else  {
+        trunc_oracle->truncate_and_reduce(dim, inB_, outtrunc, 10, 15);//shift=h-s,hypothesis s=5
+        std::cout << "outtrunc[" << 0 << "] = " << outtrunc[0] << std::endl;
     }
-  /////////////////////////
-    /////////////////////////
-    std::cout << "Generated random data for inB:" << std::endl;
-    for (int i = 0; i < dim1 * dim2; i++) {
-        std::cout << "inB[" << i << "] = " << inB[i] << std::endl;
-    }
-  /////////////////////////
+
 
   for (int i = 0; i < dim1 * dim2; i++) {
     inA[i] &= maskA;
@@ -386,6 +258,8 @@ int main(int argc, char **argv) {
   mode = MultMode::None;
   cout << "Mode: None" << endl;
 
+  delete[] inA_;
+  delete[] inB_;
   delete[] inA;
   delete[] inB;
   delete[] outC;
