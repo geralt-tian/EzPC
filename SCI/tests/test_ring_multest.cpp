@@ -288,11 +288,21 @@ int main(int argc, char **argv) {
   for (int i = 0; i < dim2 * dim3; i++) {
     inB[i] &= maskB;
   }
-  
+
+  uint8_t *msbA = nullptr;
+  uint8_t *msbB = nullptr;
+  if (precomputed_MSBs) { //预计算MSB
+    msbA = new uint8_t[dim1 * dim2];
+    msbB = new uint8_t[dim2 * dim3];
+    prod->aux->MSB(inA, msbA, dim1 * dim2, bwA);
+    prod->aux->MSB(inB, msbB, dim2 * dim3, bwB);
+  }
 
 //   test_matrix_multiplication(inA, inB, outC, false);
-  test_matrix_multiplication(inA, inB, outC, true);
-  
+  //test_matrix_multiplication(inA, inB, outC, true);
+    prod->matrix_multiplication(dim1, dim2, dim3, inA, inB, outC, bwA, bwB, bwC,
+                              true, signed_B, ::accumulate, mode,
+                              msbA, msbB);
     /////////////////////////
       std::cout << "Generated random data for outC:" << std::endl;
     for (int i = 0; i < dim1 * dim3; i++) {
