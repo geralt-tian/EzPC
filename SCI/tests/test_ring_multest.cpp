@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
   uint64_t *inA = new uint64_t[dim1 * dim2];//1*100
   uint64_t *inB = new uint64_t[dim2 * dim3];//100*35
   int dim = (::accumulate ? dim1 * dim3 : dim1 * dim2 * dim3);
-  uint64_t *outC = new uint64_t[dim];
+  uint64_t *outax = new uint64_t[dim];
   //使用PRG128分配并初始化随机矩阵inA和inB
   //prg.random_data(inA, dim1 * dim2 * sizeof(uint64_t));
   //prg.random_data(inB, dim2 * dim3 * sizeof(uint64_t));
@@ -161,8 +161,10 @@ if (T_size == 8)
   bw_ylut = 7;
 else
   bw_ylut = 29;
-  uint64_t a_alice=1;
-  uint64_t b_alice=10;
+  uint64_t *a_alice = new uint64_t[dim];
+  uint64_t *b_alice = new uint64_t[dim];
+    a_alice[0]=1;
+    b_alice[0]=10;
   uint64_t **spec_a = new uint64_t *[dim];
   uint64_t *a_bob = new uint64_t[dim];
   uint64_t N = 1ULL << bw_xlut;
@@ -187,8 +189,8 @@ else
   } else { // party == BOB
     aux->lookup_table<uint64_t>(nullptr, outtrunc, a_bob, dim, bw_xlut, bw_ylut);
   }
-
-std::cout << "y_a[" << 0 << "] = " << a_bob[0] << std::endl;
+if (party != ALICE) 
+std::cout << "a_bob[" << 0 << "] = " << a_bob[0] << std::endl;
 
 /////选择截距
   uint64_t **spec_b = new uint64_t *[dim];
@@ -214,8 +216,8 @@ std::cout << "y_a[" << 0 << "] = " << a_bob[0] << std::endl;
   } else { // party == BOB
     aux->lookup_table<uint64_t>(nullptr, outtrunc, b_bob, dim, bw_xlut, bw_ylut);
   }
-
-std::cout << "y_b[" << 0 << "] = " << b_bob[0] << std::endl;
+if (party != ALICE) 
+std::cout << "b_bob[" << 0 << "] = " << b_bob[0] << std::endl;
 
 
 //////////////////////step8
@@ -238,23 +240,43 @@ std::cout << "y_b[" << 0 << "] = " << b_bob[0] << std::endl;
 
 //   test_matrix_multiplication(inA, inB, outC, false);
   //test_matrix_multiplication(inA, inB, outC, true);
-    prod->matrix_multiplication(dim1, dim2, dim3, inA, inB, outC, bwA, bwB, bwC,
-                              true, signed_B, ::accumulate, mode,
-                              msbA, msbB);
+  
+  if (party == ALICE) {
+    prod->matrix_multiplication(dim1, dim2, dim3, inA_, a_alice, outax, bwA, bwB, bwC,
+                                true, signed_B, ::accumulate, mode,
+                                msbA, msbB);
+  } else {
+    prod->matrix_multiplication(dim1, dim2, dim3, inB_, b_bob, outax, bwA, bwB, bwC,
+                                true, signed_B, ::accumulate, mode,
+                                msbA, msbB);
+  }
     /////////////////////////
-      std::cout << "Generated random data for outC:" << std::endl;
     for (int i = 0; i < dim1 * dim3; i++) {
-        std::cout << "outC[" << i << "] =" << outC[i] << std::endl;
+        std::cout << "step8 outax[" << i << "] =" << outax[i] << std::endl;
     }
-    //////////////////////MillionaireWithEquality
+    /////////////////////////////step9
+    uint64_t *z = new uint64_t[dim];
+    if (party==ALICE){
+        z[0] = outax[0]+b_alice[0];
+    } else {
+        z[0] = outax[0]+b_bob[0];
+    }
+    
+
+    //////////////////////MillionaireWithEquality step10
+
+    uint64_t C = static_cast<int64_t>(1ULL << 62);  // 2^62 两边都加一个很大的数防止做减法的时候到负数溢出
+
     MillionaireWithEquality millionaire(party, iopack, otpack, bitlength, radix_base);
       // 比较两个数
 // ALICE 和 BOB 分别输入自己的数据
-    uint64_t local_data1;
+    uint64_t *local_data1 = new uint64_t[dim2 * dim3];//100*35
     if (party == ALICE) {
-        local_data1 = inA[0];
+        for (int i=0;i<dim;i++)
+        local_data1[i] = inA_[i]+C;
     } else if (party == BOB) {
-        local_data1 = 2^14;
+        for (int i=0;i<dim;i++)
+        local_data1[i] = (1ULL << 14) - inB_[i]+C;
     }
 
     // 调用 compare_with_eq 函数进行比较
@@ -262,8 +284,10 @@ std::cout << "y_b[" << 0 << "] = " << b_bob[0] << std::endl;
     uint8_t res_eq[1];  // 存储相等性结果
     bool b;
     bool b_;//b'
+    
     // 参与方分别传入自己的数据
-    millionaire.compare_with_eq(res_cmp, res_eq, &local_data1, 1, bitlength, true, radix_base);//line10
+
+    millionaire.compare_with_eq(res_cmp, res_eq, local_data1, 1, bitlength, true, radix_base);//line10
 
     // 输出比较结果
     if (party == ALICE) {
@@ -275,13 +299,11 @@ std::cout << "y_b[" << 0 << "] = " << b_bob[0] << std::endl;
             b=0;
         }
     }
-    uint64_t local_data2;
-    if (party == ALICE) {
-        local_data2 = inA[0];
-    } else if (party == BOB) {
-        local_data2 = 0;
-    }
-    millionaire.compare_with_eq(res_cmp, res_eq, &local_data2, 1, bitlength, true, radix_base);//line10
+    std::cout<<inB_[0]<<std::endl;
+    for (int i=0;i<dim;i++)
+    local_data1[i] = -inB_[i]+C;
+    std::cout<<local_data1[0]<<std::endl;
+    millionaire.compare_with_eq(res_cmp, res_eq, local_data1, 1, bitlength, true, radix_base);//line10
 
     if (party == ALICE) {
     if (res_cmp[0] || res_eq[0]) {
@@ -303,10 +325,10 @@ std::cout << "y_b[" << 0 << "] = " << b_bob[0] << std::endl;
     uint64_t *MUX_output1 = new uint64_t[dim1];
     if (party == ALICE) {
         MUX_sel[0] = b^b_;
-        MUX_data1[0] = outC[0]+1;
+        MUX_data1[0] = outax[0]+1;
     } else if (party == BOB) {
         MUX_sel[0] = 0;
-        MUX_data1[0] = outC[0]+1;//ax+d
+        MUX_data1[0] = outax[0]+1;//ax+d
     }
     std::cout << "MUX_sel[" << 0 << "] =" << MUX_sel[0] << std::endl;
     std::cout << "MUX_data1[" << 0 << "] =" << MUX_data1[0] << std::endl;
@@ -328,7 +350,7 @@ std::cout << "y_b[" << 0 << "] = " << b_bob[0] << std::endl;
   delete[] inB_;
   delete[] inA;
   delete[] inB;
-  delete[] outC;
+  delete[] outax;
   delete prod;
 
 }
