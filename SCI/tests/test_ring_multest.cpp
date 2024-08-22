@@ -152,7 +152,73 @@ int main(int argc, char **argv) {
         std::cout << "outtrunc[" << 0 << "] = " << outtrunc[0] << std::endl;
     }
 
+//step7
+int32_t T_size = sizeof(uint64_t) * 8;
+int bw_xlut = 8;
+int bw_ylut;
+aux = new AuxProtocols(party, iopack, otpack);
+if (T_size == 8)
+  bw_ylut = 7;
+else
+  bw_ylut = 29;
+  uint64_t a_alice=1;
+  uint64_t b_alice=10;
+  uint64_t **spec_a = new uint64_t *[dim];
+  uint64_t *a_bob = new uint64_t[dim];
+  uint64_t N = 1ULL << bw_xlut;
 
+    for (int i = 0; i < dim; i++) {
+        spec_a[i] = new uint64_t[N];
+        prg.random_data(spec_a[i], N * sizeof(uint64_t));
+        for (int j = 0; j < N; j++) {
+            spec_a[i][j] = spec_a[i][j] % 1001; // Restrict values to range 0-1000
+        }
+    }
+    // for (int i = 0; i < dim; ++i) {
+    //     std::cout << "spec[" << i << "]: ";
+    //     for (int j = 0; j < N; ++j) {
+    //         std::cout << spec[i][j] << " "; // Output the value in decimal format
+    //     }
+    //     std::cout << std::endl; // Move to the next line after each row
+    // }
+
+  if (party == ALICE) {
+    aux->lookup_table<uint64_t>(spec_a, nullptr, nullptr, dim, bw_xlut, bw_ylut);
+  } else { // party == BOB
+    aux->lookup_table<uint64_t>(nullptr, outtrunc, a_bob, dim, bw_xlut, bw_ylut);
+  }
+
+std::cout << "y_a[" << 0 << "] = " << a_bob[0] << std::endl;
+
+/////选择截距
+  uint64_t **spec_b = new uint64_t *[dim];
+  uint64_t *b_bob = new uint64_t[dim];
+
+    for (int i = 0; i < dim; i++) {
+        spec_b[i] = new uint64_t[N];
+        prg.random_data(spec_b[i], N * sizeof(uint64_t));
+        for (int j = 0; j < N; j++) {
+            spec_b[i][j] = spec_b[i][j] % 1001; // Restrict values to range 0-1000
+        }
+    }
+    // for (int i = 0; i < dim; ++i) {
+    //     std::cout << "spec[" << i << "]: ";
+    //     for (int j = 0; j < N; ++j) {
+    //         std::cout << spec[i][j] << " "; // Output the value in decimal format
+    //     }
+    //     std::cout << std::endl; // Move to the next line after each row
+    // }
+
+  if (party == ALICE) {
+    aux->lookup_table<uint64_t>(spec_b, nullptr, nullptr, dim, bw_xlut, bw_ylut);
+  } else { // party == BOB
+    aux->lookup_table<uint64_t>(nullptr, outtrunc, b_bob, dim, bw_xlut, bw_ylut);
+  }
+
+std::cout << "y_b[" << 0 << "] = " << b_bob[0] << std::endl;
+
+
+//////////////////////step8
   for (int i = 0; i < dim1 * dim2; i++) {
     inA[i] &= maskA;
   }
@@ -228,7 +294,7 @@ int main(int argc, char **argv) {
     }
 
 ////////////////////////////////
-    aux = new AuxProtocols(party, iopack, otpack);
+    //aux = new AuxProtocols(party, iopack, otpack);
 
     uint8_t *MUX_sel = new uint8_t[dim1];
     int bw_x = 32, bw_y = 32;

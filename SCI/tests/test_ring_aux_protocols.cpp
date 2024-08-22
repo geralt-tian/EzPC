@@ -175,6 +175,7 @@ template <typename T> void test_lookup_table() {
     x[i] = x[i] & mask_x;
     for (int j = 0; j < N; j++) {
       spec[i][j] = spec[i][j] & mask_y;
+      std::cout << "spec[" << i << "][" << j << "] = " << spec[i][j] << std::endl;
     }
   }
 
