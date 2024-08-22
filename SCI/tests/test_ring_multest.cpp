@@ -221,13 +221,7 @@ std::cout << "b_bob[" << 0 << "] = " << b_bob[0] << std::endl;
 
 
 //////////////////////step8
-  for (int i = 0; i < dim1 * dim2; i++) {
-    inA[i] &= maskA;
-  }
-  std::cout << "maskA = " << maskA << std::endl;
-  for (int i = 0; i < dim2 * dim3; i++) {
-    inB[i] &= maskB;
-  }
+
 
   uint8_t *msbA = nullptr;
   uint8_t *msbB = nullptr;
@@ -299,13 +293,14 @@ std::cout << "b_bob[" << 0 << "] = " << b_bob[0] << std::endl;
             b=0;
         }
     }
+    ///////////step11
     std::cout<<inB_[0]<<std::endl;
     for (int i=0;i<dim;i++)
     local_data1[i] = -inB_[i]+C;
     std::cout<<local_data1[0]<<std::endl;
     millionaire.compare_with_eq(res_cmp, res_eq, local_data1, 1, bitlength, true, radix_base);//line10
 
-    if (party == ALICE) {
+    if (party != ALICE) {
     if (res_cmp[0] || res_eq[0]) {
             std::cout << "inA[0]'s value >= beita's value\n";
             b_=1;
@@ -315,29 +310,39 @@ std::cout << "b_bob[" << 0 << "] = " << b_bob[0] << std::endl;
         }
     }
 
-////////////////////////////////
+////////////////////////////////step12 
     //aux = new AuxProtocols(party, iopack, otpack);
 
     uint8_t *MUX_sel = new uint8_t[dim1];
-    int bw_x = 32, bw_y = 32;
+    int bw_x = 64, bw_y = 64;
 
     uint64_t *MUX_data1 = new uint64_t[dim1];
-    uint64_t *MUX_output1 = new uint64_t[dim1];
+    uint64_t *MUX_output_u = new uint64_t[dim1];
     if (party == ALICE) {
-        MUX_sel[0] = b^b_;
-        MUX_data1[0] = outax[0]+1;
-    } else if (party == BOB) {
-        MUX_sel[0] = 0;
-        MUX_data1[0] = outax[0]+1;//ax+d
+        MUX_sel[0] = b;
+        MUX_data1[0] = z[0];
+    } else  {
+        MUX_sel[0] = b_;
+        MUX_data1[0] = z[0];//ax+d
     }
-    std::cout << "MUX_sel[" << 0 << "] =" << MUX_sel[0] << std::endl;
+    std::cout << "MUX_sel[" << 0 << "] = " << static_cast<int>(MUX_sel[0]) << std::endl;
     std::cout << "MUX_data1[" << 0 << "] =" << MUX_data1[0] << std::endl;
 
-    aux->multiplexer(MUX_sel, MUX_data1, MUX_output1, dim1, bw_x, bw_y);
-    std::cout << "MUX_sel[" << 0 << "] =" << MUX_sel[0] << std::endl;
+    aux->multiplexer(MUX_sel, MUX_data1, MUX_output_u, dim1, bw_x, bw_y);
     std::cout << "MUX_data1[" << 0 << "] =" << MUX_data1[0] << std::endl;
-    std::cout << "MUX_output1[" << 0 << "] =" << MUX_output1[0] << std::endl;
+    std::cout << "MUX_output1[" << 0 << "] =" << MUX_output_u[0] << std::endl;
+/////////step13
+    uint64_t *MUX_output_v = new uint64_t[dim1];
+    if (party == ALICE) {
+        MUX_sel[0] = b;
+        aux->multiplexer(MUX_sel, inA, MUX_output_v, dim1, bw_x, bw_y);
+    } else  {
+        MUX_sel[0] = 0;
+        aux->multiplexer(MUX_sel, inB, MUX_output_v, dim1, bw_x, bw_y);
+    }
 
+//////////step14
+    
 
 
 ///////////////////////////////
