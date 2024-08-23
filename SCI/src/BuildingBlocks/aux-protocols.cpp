@@ -76,19 +76,27 @@ void AuxProtocols::multiplexer(uint8_t *sel, uint64_t *x, uint64_t *y,
   }
 #pragma omp parallel num_threads(2)
   {
+      // uint64_t comm_start_mux = iopack->get_comm();
     if (omp_get_thread_num() == 1) {
+
+
       if (party == sci::ALICE) {
         otpack->iknp_reversed->recv_cot(data_R, (bool *)sel, size, bw_y);
       } else { // party == sci::BOB
         otpack->iknp_reversed->send_cot(data_S, corr_data, size, bw_y);
       }
-    } else {
+    } 
+    
+    
+    else {
       if (party == sci::ALICE) {
         otpack->iknp_straight->send_cot(data_S, corr_data, size, bw_y);
       } else { // party == sci::BOB
         otpack->iknp_straight->recv_cot(data_R, (bool *)sel, size, bw_y);
       }
     }
+    // uint64_t comm_END_mux = iopack->get_comm();
+    // cout << "INNER MUX Bytes Sent: " << (comm_END_mux - comm_start_mux) <<"bytes"<< endl;
   }
   for (int i = 0; i < size; i++) {
     y[i] = ((x[i] * uint64_t(sel[i]) + data_R[i] - data_S[i]) & mask_y);

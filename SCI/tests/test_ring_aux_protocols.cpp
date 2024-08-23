@@ -470,16 +470,21 @@ int main(int argc, char **argv) {
 
   aux = new AuxProtocols(party, iopack, otpack);
 
+    uint64_t comm_start_msb= iopack->get_comm();
+    
+
   test_MSB_computation();
-  test_wrap_computation();
-  test_mux();
-  test_B2A();
-  test_lookup_table<uint8_t>();
-  test_lookup_table<uint64_t>();
-  test_MSB_to_Wrap();
-  test_AND();
-  test_digit_decomposition();
-  test_msnzb_one_hot();
+uint64_t comm_end_msb = iopack->get_comm();
+  cout << "MSB Bytes Sent: " << (comm_end_msb - comm_start_msb) <<"bytes"<< endl;
+  // test_wrap_computation();
+  // test_mux();
+  // test_B2A();
+  // test_lookup_table<uint8_t>();
+  // test_lookup_table<uint64_t>();
+  // test_MSB_to_Wrap();
+  // test_AND();
+  // test_digit_decomposition();
+  // test_msnzb_one_hot();
 
   return 0;
 }
