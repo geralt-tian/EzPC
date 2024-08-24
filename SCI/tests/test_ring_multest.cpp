@@ -126,7 +126,7 @@ int main(int argc, char **argv)
     // prg.random_data(inB, dim2 * dim3 * sizeof(uint64_t));
 
     inA[0] = 20000;
-    inB[0] = 4576;
+    inB[0] = 1;
     std::cout << "input inA[" << 0 << "] = " << inA[0] << std::endl;
     std::cout << "input inB[" << 0 << "] = " << inB[0] << std::endl;
     /////////////step2 //check
@@ -150,7 +150,7 @@ int main(int argc, char **argv)
     uint64_t comm_start_tr = iopack->get_comm();
     trunc_oracle = new Truncation(party, iopack, otpack);
     uint64_t *outtrunc = new uint64_t[dim];
-    if (party == ALICE)
+    if (party == sci::ALICE)
     {
         trunc_oracle->truncate_and_reduce(dim, inA_h, outtrunc, 7, 15); // shift=h-s,hypothesis s=8
         //std::cout << "outtrunc[" << 0 << "] = " << outtrunc[0] << std::endl;
@@ -161,7 +161,7 @@ int main(int argc, char **argv)
         //std::cout << "outtrunc[" << 0 << "] = " << outtrunc[0] << std::endl; // outtrunc是<i>，范围是0-255
     }
     std::cout<<"=========STEP6 Truncate_reduce==========="<<std::endl;
-    std::cout<<"outtrunc ="<<outtrunc<<std::endl;
+    std::cout << std::dec << "outtrunc = " << outtrunc[0] << std::endl;
     uint64_t comm_end_tr = iopack->get_comm();
     std::cout << "TR Bytes Sent: " << (comm_end_tr - comm_start_tr) << "bytes" << std::endl;
     // step7 check
@@ -264,14 +264,30 @@ int main(int argc, char **argv)
     //     }
     //     std::cout << std::endl; // Move to the next line after each row
     // }
-
-    if (party == ALICE)
+    uint64_t *outtrunc1 = new uint64_t[dim];
+    for (size_t i = 0; i < dim; i++)
     {
-        aux->lookup_table<uint64_t>(spec_a, nullptr, nullptr, dim, bw_xlut, 22); // bw_xlut应该是outtrunc的上限
+        outtrunc1[0]=0;
+    }
+    
+    uint64_t *outtrunc_a = new uint64_t[dim];
+        if (party == ALICE)
+    {
+        iopack->io->send_data(outtrunc, dim * sizeof(uint64_t));
     }
     else
     {                                                                            // party == BOB
-        aux->lookup_table<uint64_t>(nullptr, outtrunc, a_bob, dim, bw_xlut, 22); // a_bob是查询到的斜率
+        iopack->io->recv_data(outtrunc1, dim * sizeof(uint64_t));
+        outtrunc_a[0] = (outtrunc[0] + outtrunc1[0]) & ((1ULL<<8) - 1);
+        std::cout << "outtrunc_a[" << 0 << "] = " << outtrunc_a[0] << std::endl;
+    }
+    if (party == ALICE)
+    {
+        aux->lookup_table<uint64_t>(spec_a, nullptr, nullptr, dim, bw_xlut, 22); // bw_xlut是outtrunc的位宽
+    }
+    else
+    {                                                                            // party == BOB
+        aux->lookup_table<uint64_t>(nullptr, outtrunc_a, a_bob, dim, bw_xlut, 22); // a_bob是查询到的斜率
     }
     if (party != ALICE)
         std::cout << "a_bob[" << 0 << "] = " << a_bob[0] << std::endl;
@@ -296,17 +312,17 @@ int main(int argc, char **argv)
     //     }
     //     std::cout << std::endl; // Move to the next line after each row
     // }
-    for (int i; i < dim; i++)
-    {
-        outtrunc[i] = outtrunc[i] - 16384;
-    }
+    // for (int i; i < dim; i++)
+    // {
+    //     outtrunc[i] = outtrunc[i] - 16384;
+    // }
     if (party == ALICE)
     {
         aux->lookup_table<uint64_t>(spec_b, nullptr, nullptr, dim, bw_xlut, 37);
     }
     else
     {                                                                            // party == BOB
-        aux->lookup_table<uint64_t>(nullptr, outtrunc, b_bob, dim, bw_xlut, 37); // b_bob是查询到的截距
+        aux->lookup_table<uint64_t>(nullptr, outtrunc_a, b_bob, dim, bw_xlut, 37); // b_bob是查询到的截距  重要问题，这里的outtrunc应该是两边share加起来，代码里只有Bob的outtrunc check
     }
     if (party != ALICE)
         std::cout << "b_bob[" << 0 << "] = " << b_bob[0] << std::endl;
@@ -385,7 +401,7 @@ int main(int argc, char **argv)
     uint8_t *msb = new uint8_t[dim];
     // 参与方分别传入自己的数据
     uint64_t comm_start_msb = iopack->get_comm();
-    prod->aux->MSB(local_data1, msb, dim1 * dim2, bwC);
+    prod->aux->MSB(local_data1, msb, dim1 * dim2, bwC);//重要问题，有符号数的第一位是1是负数，直接用MSB比较是有问题的，可以先比较符号位，然后再用MSB
     uint64_t comm_end_msb = iopack->get_comm();
     // millionaire.compare_with_eq(res_cmp_b, res_eq_b, local_data1, 1, bitlength, true, radix_base);//line10  这里生成的可能是结果的share，真tm是
     std::cout << "local_data1[0]=" << local_data1[0] << std::endl;
@@ -488,14 +504,12 @@ int main(int argc, char **argv)
         uint64_t result = (MUX_rec_v[0] + MUX_rec_u[0] + MUX_output_u[0] + MUX_output_v[0]) & mask_bwC;
 
         // The result is automatically modulo 2^64 because of uint64_t
+        std::cout << "The input is: " << (inA[0]+inB[0]) << std::endl;
         std::cout << "The result mod 2^37 is: " << result << std::endl;
+        std::cout << "for input from (0-32,767) output shuould be : " << (((inA[0]+inB[0])*a_bob[0]+b_bob[0])& mask_bwC) << std::endl;
     }
 
     ////////////////////////
-    cout << "Precomputed MSBs: " << precomputed_MSBs << endl;
-    cout << "Accumulate: " << ::accumulate << endl;
-    mode = MultMode::None;
-    cout << "Mode: None" << endl;
     delete[] inA_;
     delete[] inB_;
     delete[] inA;
