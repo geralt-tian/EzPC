@@ -9,7 +9,7 @@ from sklearn.metrics import mean_squared_error
 
 popt_precision = 6
 scale_factor = 2**12  # 选择缩放因子
-modulus = 2**22  # L12的环
+modulus = 2**37  # L12的环
 
 
 '''
