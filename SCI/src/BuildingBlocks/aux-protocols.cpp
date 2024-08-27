@@ -205,6 +205,8 @@ void AuxProtocols::MSB(uint64_t *x, uint8_t *msb_x, int32_t size,
   delete[] msb_xb;
 }
 
+
+
 void AuxProtocols::MSB_to_Wrap(uint64_t *x, uint8_t *msb_x, uint8_t *wrap_x,
                                int32_t size, int32_t bw_x) {
   assert(bw_x <= 64);

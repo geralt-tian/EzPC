@@ -68,6 +68,27 @@ Truncation *trunc_oracle;
 //////////////////////////MUX
 AuxProtocols *aux;
 
+double calculate_GELU(uint64_t value) {
+    // 定义 2^37 和 2^12 的浮点值
+    const uint64_t sign_bit_mask = 1ULL << 36;  // 第 37 位的掩码
+    const double pow_2_37 = static_cast<double>(1ULL << 37);
+    const double pow_2_12 = static_cast<double>(1ULL << 12);
+
+    // 检查符号位（第 37 位）
+    if (value & sign_bit_mask) {
+        // 如果符号位为 1，表示负数
+        value -= static_cast<uint64_t>(pow_2_37);  // 减去 2^37
+    }
+    // 将值转换为浮点数
+    double x = static_cast<double>(value) / pow_2_12;
+    std::cout << "x = " << x << std::endl;
+    // 计算表达式
+    // double a = x - 4;
+    double a=x;
+    double tanh_part = std::tanh(0.7978845608 * a + 0.7978845608 * 0.044715 * std::pow(a, 3));
+    return 0.5 * a * (1 + tanh_part);
+}
+
 void assign_lower_h_bits(int32_t dim1, int32_t dim2, int32_t dim3, uint64_t *inA, uint64_t *inB, uint64_t *inA_, uint64_t *inB_, int32_t h)
 {
     // Create a mask that has the lowest h bits set to 1
@@ -125,8 +146,8 @@ int main(int argc, char **argv)
     // prg.random_data(inA, dim1 * dim2 * sizeof(uint64_t));
     // prg.random_data(inB, dim2 * dim3 * sizeof(uint64_t));
 
-    inA[0] = 20000;
-    inB[0] = 1;
+    inA[0] = 8000 + 100;
+    inB[0] = 192;
     std::cout << "input inA[" << 0 << "] = " << inA[0] << std::endl;
     std::cout << "input inB[" << 0 << "] = " << inB[0] << std::endl;
     /////////////step2 //check
@@ -137,7 +158,8 @@ int main(int argc, char **argv)
     uint64_t *inB_ = new uint64_t[dim2 * dim3]; // 100*35
 
     inA_[0] = (inA[0] + alpha_) & mask_bwC;
-    inB_[0] = (inB[0] + alpha_) & mask_bwC;
+    inB_[0] = (inB[0]) & mask_bwC;
+    std::cout<< "inB_[" << 0 << "] = " << inB_[0] << std::endl;
     // step5 //check
     uint64_t *inA_h = new uint64_t[dim1 * dim2]; // 1*100
     uint64_t *inB_h = new uint64_t[dim2 * dim3]; // 100*35
@@ -152,7 +174,7 @@ int main(int argc, char **argv)
     uint64_t *outtrunc = new uint64_t[dim];
     if (party == sci::ALICE)
     {
-        trunc_oracle->truncate_and_reduce(dim, inA_h, outtrunc, 7, 15); // shift=h-s,hypothesis s=8
+        trunc_oracle->truncate_and_reduce(dim, inA_h, outtrunc, 7, 15); // shift=h-s,hypothesis s=8  truncate就是为了分组，截断后7位，为了前8位可以映射到对应的table
         //std::cout << "outtrunc[" << 0 << "] = " << outtrunc[0] << std::endl;
     }
     else
@@ -334,33 +356,48 @@ int main(int argc, char **argv)
     uint64_t comm_start_mult = iopack->get_comm();
     uint8_t *msbA = nullptr;
     uint8_t *msbB = nullptr;
-    if (precomputed_MSBs)
-    { // 预计算MSB
-        msbA = new uint8_t[dim1 * dim2];
-        msbB = new uint8_t[dim2 * dim3];
-        prod->aux->MSB(inA, msbA, dim1 * dim2, bwA);
-        prod->aux->MSB(inB, msbB, dim2 * dim3, bwB);
-    }
+
 
     //   test_matrix_multiplication(inA, inB, outC, false);
     // test_matrix_multiplication(inA, inB, outC, true);
-
+    
     if (party == ALICE)
     {
-        prod->matrix_multiplication(dim1, dim2, dim3, inA_h, a_alice, outax, bwA, bwB, bwC,
-                                    true, signed_B, ::accumulate, mode,
+            if (precomputed_MSBs)
+    { // 预计算MSB
+        msbA = new uint8_t[dim1 * dim2];
+        msbB = new uint8_t[dim2 * dim3];
+        prod->aux->MSB(a_alice, msbA, dim1 * dim2, bwA);
+        prod->aux->MSB(inA_h, msbB, dim2 * dim3, bwB);
+    }
+        std::cout << "inA_h[" << 0 << "] = " << inA_h[0] << std::endl;
+        std::cout << "a_alice[" << 0 << "] = " << a_alice[0] << std::endl;
+
+        prod->matrix_multiplication(dim1, dim2, dim3, a_alice,  inA_h, outax, bwC, bwC, bwC+22,
+                                    true, true, ::accumulate, mode,
                                     msbA, msbB);
     }
     else
     {
-        prod->matrix_multiplication(dim1, dim2, dim3, inB_h, a_bob, outax, bwA, bwB, bwC,
-                                    true, signed_B, ::accumulate, mode,
+        std::cout << "inB_h[" << 0 << "] = " << inB_h[0] << std::endl;
+        std::cout << "a_bob[" << 0 << "] = " << a_bob[0] << std::endl;
+                    if (precomputed_MSBs)
+    { // 预计算MSB
+        msbA = new uint8_t[dim1 * dim2];
+        msbB = new uint8_t[dim2 * dim3];
+        prod->aux->MSB(a_bob, msbA, dim1 * dim2, bwA);
+        prod->aux->MSB(inB_h, msbB, dim2 * dim3, bwB);
+    }
+        prod->matrix_multiplication(dim1, dim2, dim3, a_bob,  inB_h, outax, bwC, bwC, bwC+22,
+                                    true, true, ::accumulate, mode,
                                     msbA, msbB);
     }
     /////////////////////////
+
     for (int i = 0; i < dim1 * dim3; i++)
     {
-        std::cout << "step8 outax[" << i << "] =" << outax[i] << std::endl;
+        outax[i] = outax[i] & mask_bwC;
+        std::cout << "step8 outax[" << i << "] = " << outax[i] << std::endl;
     }
 
     uint64_t comm_end_mult = iopack->get_comm();
@@ -380,11 +417,11 @@ int main(int argc, char **argv)
     //////////////////////MillionaireWithEquality step10
     std::cout<<"=========STEP10 CMP   ==========="<<std::endl;
 
-    uint64_t C = static_cast<int64_t>(1ULL << 20); // 2^62 两边都加一个很大的数防止做减法的时候到负数溢出
 
     // 比较两个数
     // ALICE 和 BOB 分别输入自己的数据
     uint64_t *local_data1 = new uint64_t[dim2 * dim3]; // 100*35
+    uint64_t *local_data2 = new uint64_t[dim2 * dim3]; // 100*35
     if (party == ALICE)
     {
         for (int i = 0; i < dim; i++)
@@ -393,18 +430,22 @@ int main(int argc, char **argv)
     else
     {
         for (int i = 0; i < dim; i++)
-            local_data1[i] = ((1ULL << 15) - inB_[i]) & mask_bwC; // 得设置环操作
-    }
+            local_data1[i] = ((inB_[i]) - (1ULL << 15)) & mask_bwC; // 得设置环操作
 
+    }
+    std::cout << "local_data1[0]= " << local_data1[0] << std::endl;
     // 调用 compare_with_eq 函数进行比较
 
     uint8_t *msb = new uint8_t[dim];
     // 参与方分别传入自己的数据
     uint64_t comm_start_msb = iopack->get_comm();
-    prod->aux->MSB(local_data1, msb, dim1 * dim2, bwC);//重要问题，有符号数的第一位是1是负数，直接用MSB比较是有问题的，可以先比较符号位，然后再用MSB
+    prod->aux->MSB(local_data1, msb, dim1 * dim2, bwC);
+    std::cout << "msb[0] = " << static_cast<int>(msb[0]) << std::endl;
+    if (party == ALICE)
+        msb[0] = msb[0] ^ 1;
     uint64_t comm_end_msb = iopack->get_comm();
     // millionaire.compare_with_eq(res_cmp_b, res_eq_b, local_data1, 1, bitlength, true, radix_base);//line10  这里生成的可能是结果的share，真tm是
-    std::cout << "local_data1[0]=" << local_data1[0] << std::endl;
+    
     std::cout << "msb[0] = " << static_cast<int>(msb[0]) << std::endl;
     // std::cout << "res_cmp_b[0] = " << static_cast<int>(res_eq_b[0]) << std::endl;
     //  输出比较结果
@@ -412,27 +453,26 @@ int main(int argc, char **argv)
     cout << "MSB Bytes Sent: " << (comm_end_msb - comm_start_msb) << "bytes" << endl;
 
     ///////////step11
-    std::cout << inB_[0] << std::endl;
 
     if (party == ALICE)
     {
         for (int i = 0; i < dim; i++)
-            local_data1[i] = inA_[i] & mask_bwC;
+            local_data2[i] = inA_[i] & mask_bwC;
     }
     else
     {
         for (int i = 0; i < dim; i++)
-            local_data1[i] = (-inB_[i]) & mask_bwC;
+            local_data2[i] = (inB_[i]) & mask_bwC;
         ; // 设置环操作
     }
-
-    for (int i = 0; i < dim; i++)
-        local_data1[i] = -inB_[i] & mask_bwC;
-    std::cout << local_data1[0] << std::endl;
-
+    std::cout << "local_data2[0]=" << local_data2[0] << std::endl;
     uint8_t *msb_ = new uint8_t[dim];
     uint64_t comm_start_cmp = iopack->get_comm();
-    prod->aux->MSB(local_data1, msb_, dim1 * dim2, bwC);
+
+
+    prod->aux->MSB(local_data2, msb_, dim1 * dim2, bwC);
+    if (party == ALICE)
+    msb_[0] = msb_[0] ^ 1;
 
     std::cout << "msb_[0] = " << static_cast<int>(msb_[0]) << std::endl;
 
@@ -453,11 +493,13 @@ int main(int argc, char **argv)
     MUX_sel[0] = msb_[0] ^ msb[0];
     // MUX_data1[0] = z[0];
     MUX_data1[0] = z[0];
+    // if (party==ALICE)
+    // MUX_sel[0]=MUX_sel[0]^1;
 
     std::cout << "MUX_sel[" << 0 << "] = " << static_cast<int>(MUX_sel[0]) << std::endl;
     std::cout << "MUX_data1[" << 0 << "] =" << MUX_data1[0] << std::endl;
 
-    aux->multiplexer(MUX_sel, MUX_data1, MUX_output_u, dim1, bw_x, bw_y);
+    aux->multiplexer(MUX_sel, z, MUX_output_u, dim1, bw_x, bw_y);
     std::cout << "MUX_output_u[" << 0 << "] =" << MUX_output_u[0] << std::endl;
 
     uint64_t comm_end_mux = iopack->get_comm();
@@ -469,12 +511,14 @@ int main(int argc, char **argv)
     if (party == ALICE)
     {
         MUX_sel[0] = msb[0];
+        std::cout << "MUX_sel[" << 0 << "] = " << static_cast<int>(MUX_sel[0]) << std::endl;
         aux->multiplexer(MUX_sel, inA, MUX_output_v, dim1, bw_x, bw_y);
         std::cout << "MUX_output_v[" << 0 << "] =" << MUX_output_v[0] << std::endl;
     }
     else
     {
         MUX_sel[0] = msb[0];
+        std::cout << "MUX_sel[" << 0 << "] = " << static_cast<int>(MUX_sel[0]) << std::endl;
         aux->multiplexer(MUX_sel, inB, MUX_output_v, dim1, bw_x, bw_y);
         std::cout << "MUX_output_v[" << 0 << "] =" << MUX_output_v[0] << std::endl;
     }
@@ -501,13 +545,35 @@ int main(int argc, char **argv)
         uint64_t *MUX_rec_v = new uint64_t[dim];
         iopack->io->recv_data(MUX_rec_u, dim * sizeof(uint64_t));
         iopack->io->recv_data(MUX_rec_v, dim * sizeof(uint64_t));
-        uint64_t result = (MUX_rec_v[0] + MUX_rec_u[0] + MUX_output_u[0] + MUX_output_v[0]) & mask_bwC;
 
-        // The result is automatically modulo 2^64 because of uint64_t
+        // uint64_t result = ((( MUX_output_u[0]+ MUX_rec_u[0]) >> 12 +  MUX_rec_v[0] + MUX_output_v[0]) & mask_bwC) >> 24;
+            // 第一步：计算 MUX_output_u[0] + MUX_rec_u[0]
+    uint64_t sum_u = MUX_output_u[0] + MUX_rec_u[0]- b_bob[0];
+    sum_u = std::fmod(sum_u, static_cast<long double>(mask_bwC + 1));
+    std::cout << "Step 1 - sum_u (MUX_output_u[0] + MUX_rec_u[0]): " << sum_u << std::endl;
+
+    // 第二步：将 sum_u 转换为浮点数并除以 2**12
+    long double sum_u_div = static_cast<long double>(sum_u) / static_cast<long double>(1ULL << 12);
+    std::cout << "Step 2 - sum_u_div (sum_u / 2^12): " << sum_u_div << std::endl;
+
+    // 第三步：继续计算 MUX_rec_v[0] 和 MUX_output_v[0] 的和，并加到 sum_u_div 上
+    long double final_sum = sum_u_div + static_cast<long double>(b_bob[0]) ;
+    std::cout << "Step 3 - final_sum (sum_u_div + MUX_rec_v[0] + MUX_output_v[0]): " << final_sum << std::endl;
+    
+    // 第四步：应用掩码
+    final_sum = std::fmod(final_sum, static_cast<long double>(mask_bwC + 1)); // mask_bwC + 1 to include the full range of the mask
+    std::cout << "Step 4 - final_sum after masking: " << final_sum << std::endl;
+
+    // 第五步：用浮点数除以 2**24
+    long double result = final_sum / static_cast<long double>(1ULL << 12);
+    std::cout << "Step 5 - result (final_sum / 2^24): " << result << std::endl;
+        // The result is automatically modulo 2^64 because of uint64_ts
         std::cout << "The input is: " << (inA[0]+inB[0]) << std::endl;
-        std::cout << "The result mod 2^37 is: " << result << std::endl;
-        std::cout << "for input from (0-32,767) output shuould be : " << (((inA[0]+inB[0])*a_bob[0]+b_bob[0])& mask_bwC) << std::endl;
+        std::cout << "The float_result is: " << result << std::endl;
+        // calculate_GELU(inA[0]+inB[0]);
+        std::cout << "The result is: " << calculate_GELU(inA[0]+inB[0]) << std::endl;
     }
+
 
     ////////////////////////
     delete[] inA_;
