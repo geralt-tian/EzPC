@@ -64,6 +64,20 @@ public:
       // bitwidth of y
       int32_t bw_y);
 
+        void multiplexerabs(
+      // selection bits
+      uint8_t *sel,
+      // input vector
+      uint64_t *x,
+      // output vector
+      uint64_t *y,
+      // size of vectors
+      int32_t size,
+      // bitwidth of x
+      int32_t bw_x,
+      // bitwidth of y
+      int32_t bw_y);
+
   // Boolean to Arithmetic Shares
   void B2A(
       // input (boolean) vector
