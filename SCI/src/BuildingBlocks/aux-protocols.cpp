@@ -123,7 +123,7 @@ void AuxProtocols::multiplexer(uint8_t *sel, uint64_t *x, uint64_t *y,
 }
 
 void AuxProtocols::multiplexerabs(uint8_t *sel, uint64_t *x, uint64_t *y,
-                               int32_t size, int32_t bw_x, int32_t bw_y)
+                                  int32_t size, int32_t bw_x, int32_t bw_y)
 {
   assert(bw_x <= 64 && bw_y <= 64 && bw_y <= bw_x);
   uint64_t mask_x = (bw_x == 64 ? -1 : ((1ULL << bw_x) - 1));
@@ -141,6 +141,7 @@ void AuxProtocols::multiplexerabs(uint8_t *sel, uint64_t *x, uint64_t *y,
   {
     corr_data[i] = (x[i] * (1 - 2 * uint64_t(sel[i]))) & mask_y;
   }
+
 #pragma omp parallel num_threads(2)
   {
     // uint64_t comm_start_mux = iopack->get_comm();
@@ -171,19 +172,26 @@ void AuxProtocols::multiplexerabs(uint8_t *sel, uint64_t *x, uint64_t *y,
     // uint64_t comm_END_mux = iopack->get_comm();
     // cout << "INNER MUX Bytes Sent: " << (comm_END_mux - comm_start_mux) <<"bytes"<< endl;
   }
-  std::cout << "data_R[" << 0 << "] = " << data_R[0] << std::endl;
-  std::cout << "data_S[" << 0 << "] = " << data_S[0] << std::endl;
-  std::cout << "sel[" << 0 << "] = " << static_cast<int>(sel[0])  << std::endl;
+  // std::cout << "data_R[" << 0 << "] = " << data_R[0] << std::endl;
+  std::cout << "2*x[0] * uint64_t(sel[0])" << "] = " << 2 * x[0] * uint64_t(sel[0]) << std::endl;
+  std::cout << "sel[" << 0 << "] = " << static_cast<int>(sel[0]) << std::endl;
+  std::cout << "x[" << 0 << "] = " << x[0] << std::endl;
+  std::cout << "2*((data_R[i] - data_S[i])& mask_y)" << "] = " << 2 * ((data_R[0] - data_S[0]) & mask_y) << std::endl;
   for (int i = 0; i < size; i++)
   {
-    y[i] = ((2*x[i] * uint64_t(sel[i]) - x[i] + 2*(data_R[i] - data_S[i])& mask_y) & mask_y);
-  }
 
+    uint64_t temp1 = (2 * x[i] * uint64_t(sel[i])) & mask_y;
+    uint64_t temp2 = (2 * ((data_R[i] - data_S[i]) & mask_y)) & mask_y;
+    std::cout << "x[" << 0 << "] = " << x[0] << std::endl;
+    y[i] = (temp1 + temp2 - x[i]) & mask_y;
+    std::cout << "x[" << 0 << "] = " << x[0] << std::endl;
+    // y[i] = ((2*x[i] * uint64_t(sel[i]) + 2*((data_R[i] - data_S[i])& mask_y) - x[i]  ) & mask_y);
+  }
+  std::cout << "sel[" << 0 << "] = " << static_cast<int>(sel[0]) << std::endl;
   delete[] corr_data;
   delete[] data_S;
   delete[] data_R;
 }
-
 
 void AuxProtocols::B2A(uint8_t *x, uint64_t *y, int32_t size, int32_t bw_y)
 {
