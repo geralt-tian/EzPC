@@ -74,7 +74,7 @@ AuxProtocols *aux;
 
 
 void test_absmux() { //  根据选择信号 sel 来选择输入信号 x 或 y 之一作为输出
-  int bw_x = 32, bw_y = 32;
+  int bw_x = 37, bw_y = 37;
   PRG128 prg;
   uint64_t mask_x = (bw_x == 64 ? -1 : ((1ULL << bw_x) - 1));
   uint64_t mask_y = (bw_y == 64 ? -1 : ((1ULL << bw_y) - 1));
@@ -83,8 +83,16 @@ void test_absmux() { //  根据选择信号 sel 来选择输入信号 x 或 y �
   uint64_t *x = new uint64_t[dim];
   uint64_t *y = new uint64_t[dim];
 
-  prg.random_data(sel, dim * sizeof(uint8_t));
-  prg.random_data(x, dim * sizeof(uint64_t));
+  // prg.random_data(sel, dim * sizeof(uint8_t));
+  // prg.random_data(x, dim * sizeof(uint64_t));
+    if (party==ALICE){
+    sel[0] = 0;
+    x[0] = 10000;
+  }
+  else {
+    sel[0] = 1;
+    x[0] = 6383;
+  }
   for (int i = 0; i < dim; i++) {
     sel[i] = sel[i] & 1;
     x[i] = x[i] & mask_x;

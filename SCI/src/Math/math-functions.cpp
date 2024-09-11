@@ -887,3 +887,32 @@ void MathFunctions::ReLU(int32_t dim, uint64_t *x, uint64_t *y, int32_t bw_x,
   delete[] tmp;
   delete[] tmp_msb;
 }
+
+void MathFunctions::DReLU(int32_t dim, uint64_t *x, uint8_t *y, int32_t bw_x,
+                         uint64_t six) {
+  bool six_comparison = false;
+  if (six != 0)
+    six_comparison = true;
+  int32_t size = (six_comparison ? 2 * dim : dim);
+
+  uint64_t mask_x = (bw_x == 64 ? -1 : ((1ULL << bw_x) - 1));
+
+  uint64_t *tmp = new uint64_t[size];
+  uint8_t *tmp_msb = new uint8_t[size];
+  memcpy(tmp, x, dim * sizeof(uint64_t));
+  if (six_comparison) {
+    for (int i = 0; i < dim; i++) {
+      tmp[dim + i] = (party == ALICE ? x[i] - six : x[i]) & mask_x;
+    }
+  }
+  aux->MSB(tmp, y, size, bw_x);
+  for (int i = 0; i < size; i++) {
+    if (party == ALICE) {
+      y[i] = y[i] ^ 1;
+    }
+  }
+
+
+  delete[] tmp;
+  delete[] tmp_msb;
+}
