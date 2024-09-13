@@ -53,6 +53,7 @@ int bwB = 15;
 int bwC = bwA + bwB; // 矩阵位宽
 uint64_t mask_bwC = (bwC == 64 ? -1 : ((1ULL << bwC) - 1));
 uint64_t mask_16 = (16 == 64 ? -1 : ((1ULL << 16) - 1));
+uint64_t mask_29 = (29 == 64 ? -1 : ((1ULL << 29) - 1));
 
 bool signed_B = true;           // 表示矩阵B是否为有符号数
 bool accumulate = true;         // 决定是否累加结果
@@ -152,7 +153,7 @@ int main(int argc, char **argv)
     // prg.random_data(inA, dim1 * dim2 * sizeof(uint64_t));
     // prg.random_data(inB, dim2 * dim3 * sizeof(uint64_t));
 
-    inA[0] = 5000; //(0-16383)
+    inA[0] = 18000; //(0-16383)
     inB[0] = 6383;
     std::cout << "input inA[" << 0 << "] = " << inA[0] << std::endl;
     std::cout << "input inB[" << 0 << "] = " << inB[0] << std::endl;
@@ -170,7 +171,7 @@ int main(int argc, char **argv)
     uint64_t *inA_h = new uint64_t[dim1 * dim2]; // 1*100
     uint64_t *inB_h = new uint64_t[dim2 * dim3]; // 100*35
 
-    std::cout << "=========STEP4 use DRelu to learn [[b]]^B===========" << std::endl;
+    std::cout << "\n=========STEP4 use DRelu to learn [[b]]^B===========" << std::endl;
 
     uint8_t *Drelu = new uint8_t[dim];
     uint8_t *msbA = new uint8_t[dim];
@@ -202,7 +203,7 @@ int main(int argc, char **argv)
     }
     std::cout << "Drelu[" << 0 << "] = " << static_cast<int> (Drelu[0]) << std::endl;
 
-    std::cout << "=========STEP5 use EMUX to learn [[|x|]]in L ring===========" << std::endl;
+    std::cout << "\n=========STEP5 use EMUX to learn [[|x|]]in L ring===========" << std::endl;
     aux = new AuxProtocols(party, iopack, otpack);
     uint64_t *EMUX_output_x = new uint64_t[dim];
     std::cout << "inA[" << 0 << "] = " << inA[0] << std::endl;
@@ -217,7 +218,7 @@ int main(int argc, char **argv)
     }
     std::cout << "EMUX_output_x[" << 0 << "] = " << EMUX_output_x[0] << std::endl;//目前的输出是16383+2**37
     
-    std::cout << "=========STEP6 extract the lower h=14 bits===========" << std::endl;
+    std::cout << "\n=========STEP6 extract the lower h=14 bits===========" << std::endl;
     assign_lower_h_bits(dim1, dim2, dim3, inA, inB, inA_h, inB_h, h);
 
     std::cout << "inA_h[" << 0 << "] = " << inA_h[0] << std::endl;
@@ -225,7 +226,7 @@ int main(int argc, char **argv)
 
     // step6 check
 
-    std::cout << "=========STEP7 reduce and get [[x]]===========" << std::endl;
+    std::cout << "\n=========STEP7 reduce and get [[x]]===========" << std::endl;
     uint64_t comm_start_tr = iopack->get_comm();
     trunc_oracle = new Truncation(party, iopack, otpack);
     uint64_t *outtrunc = new uint64_t[dim];
@@ -247,7 +248,7 @@ int main(int argc, char **argv)
     uint64_t comm_start_lut = iopack->get_comm();
 
 
-    std::cout << "=========STEP8 LookUp Table   ===========" << std::endl;
+    std::cout << "\n=========STEP8 LookUp Table   ===========" << std::endl;
     // 重跑一个有256个的
     // std::vector<std::vector<uint64_t>> data = {{137438953471, 0}, {137438953470, 0}, {137438953470, 0}, {137438953470, 0}, {137438953470, 0}, {137438953469, 0}, {137438953469, 0}, {137438953468, 0}, {137438953468, 0}, {137438953467, 0}, {137438953467, 0}, {137438953466, 1}, {137438953465, 1}, {137438953465, 1}, {137438953464, 2}, {137438953463, 2}, {137438953462, 3}, {137438953460, 3}, {137438953459, 4}, {137438953458, 5}, {137438953456, 6}, {137438953454, 7}, {137438953453, 8}, {137438953450, 10}, {137438953448, 11}, {137438953446, 13}, {137438953443, 15}, {137438953440, 18}, {137438953437, 20}, {137438953434, 23}, {137438953431, 27}, {137438953427, 30}, {137438953423, 34}, {137438953418, 39}, {137438953414, 44}, {137438953409, 49}, {137438953404, 55}, {137438953398, 61}, {137438953392, 68}, {137438953386, 76}, {137438953379, 84}, {137438953372, 93}, {137438953365, 103}, {137438953357, 114}, {137438953349, 125}, {137438953340, 137}, {137438953331, 150}, {137438953322, 163}, {137438953312, 178}, {137438953302, 193}, {137438953292, 210}, {137438953281, 227}, {137438953269, 245}, {137438953258, 265}, {137438953246, 285}, {137438953234, 306}, {137438953221, 328}, {137438953208, 351}, {137438953195, 375}, {137438953182, 399}, {137438953168, 424}, {137438953155, 450}, {137438953141, 477}, {137438953127, 504}, {137438953113, 532}, {137438953099, 560}, {137438953086, 588}, {137438953072, 616}, {137438953059, 644}, {137438953046, 672}, {137438953033, 700}, {137438953021, 727}, {137438953010, 753}, {137438952999, 778}, {137438952988, 801}, {137438952979, 823}, {137438952970, 844}, {137438952963, 862}, {137438952956, 878}, {137438952951, 891}, {137438952947, 900}, {137438952945, 907}, {137438952944, 910}, {137438952944, 908}, {137438952947, 902}, {137438952951, 891}, {137438952957, 874}, {137438952965, 852}, {137438952975, 824}, {137438952988, 789}, {137438953003, 747}, {137438953020, 697}, {137438953040, 640}, {137438953063, 574}, {137438953088, 500}, {137438953116, 416}, {137438953147, 324}, {137438953181, 221}, {137438953218, 108}, {137438953258, 137438953457}, {137438953301, 137438953323}, {137438953347, 137438953178}, {137438953396, 137438953021}, {137438953448, 137438952853}, {31, 137438952673}, {90, 137438952482}, {151, 137438952278}, {216, 137438952062}, {283, 137438951834}, {354, 137438951594}, {427, 137438951342}, {503, 137438951078}, {582, 137438950803}, {663, 137438950515}, {747, 137438950216}, {834, 137438949906}, {922, 137438949586}, {1013, 137438949255}, {1105, 137438948913}, {1199, 137438948563}, {1295, 137438948203}, {1393, 137438947835}, {1491, 137438947459}, {1591, 137438947076}, {1692, 137438946686}, {1793, 137438946290}, {1895, 137438945889}, {1997, 137438945484}, {2099, 137438945075}, {2201, 137438944664}, {2303, 137438944250}, {2404, 137438943836}, {2505, 137438943421}, {2605, 137438943006}, {2703, 137438942593}, {2801, 137438942182}, {2897, 137438941775}, {2991, 137438941371}, {3083, 137438940972}, {3174, 137438940578}, {3262, 137438940191}, {3349, 137438939811}, {3433, 137438939439}, {3514, 137438939075}, {3593, 137438938720}, {3669, 137438938376}, {3742, 137438938041}, {3813, 137438937717}, {3880, 137438937405}, {3945, 137438937105}, {4006, 137438936816}, {4065, 137438936541}, {4120, 137438936278}, {4172, 137438936028}, {4221, 137438935792}, {4267, 137438935569}, {4310, 137438935360}, {4350, 137438935164}, {4387, 137438934982}, {4421, 137438934814}, {4452, 137438934659}, {4480, 137438934518}, {4505, 137438934390}, {4528, 137438934275}, {4548, 137438934172}, {4565, 137438934083}, {4580, 137438934005}, {4593, 137438933939}, {4603, 137438933885}, {4611, 137438933842}, {4617, 137438933809}, {4621, 137438933787}, {4624, 137438933774}, {4624, 137438933771}, {4623, 137438933777}, {4621, 137438933791}, {4617, 137438933812}, {4612, 137438933841}, {4605, 137438933877}, {4598, 137438933920}, {4589, 137438933968}, {4580, 137438934021}, {4569, 137438934080}, {4558, 137438934142}, {4547, 137438934209}, {4535, 137438934279}, {4522, 137438934352}, {4509, 137438934428}, {4496, 137438934506}, {4482, 137438934585}, {4469, 137438934667}, {4455, 137438934749}, {4441, 137438934832}, {4427, 137438934915}, {4413, 137438934998}, {4400, 137438935082}, {4386, 137438935164}, {4373, 137438935246}, {4360, 137438935328}, {4347, 137438935408}, {4334, 137438935486}, {4322, 137438935563}, {4310, 137438935639}, {4299, 137438935713}, {4287, 137438935785}, {4276, 137438935854}, {4266, 137438935922}, {4256, 137438935988}, {4246, 137438936051}, {4237, 137438936112}, {4228, 137438936171}, {4219, 137438936227}, {4211, 137438936281}, {4203, 137438936333}, {4196, 137438936383}, {4189, 137438936430}, {4182, 137438936475}, {4176, 137438936517}, {4170, 137438936558}, {4164, 137438936596}, {4159, 137438936632}, {4154, 137438936666}, {4150, 137438936698}, {4145, 137438936729}, {4141, 137438936757}, {4137, 137438936784}, {4134, 137438936808}, {4131, 137438936832}, {4128, 137438936853}, {4125, 137438936873}, {4122, 137438936892}, {4120, 137438936909}, {4118, 137438936925}, {4115, 137438936940}, {4114, 137438936954}, {4112, 137438936967}, {4110, 137438936978}, {4109, 137438936989}, {4108, 137438936999}, {4106, 137438937008}, {4105, 137438937016}, {4104, 137438937023}, {4103, 137438937030}, {4103, 137438937036}, {4102, 137438937042}, {4101, 137438937047}, {4101, 137438937051}, {4100, 137438937055}, {4100, 137438937059}, {4099, 137438937062}, {4099, 137438937065}, {4098, 137438937068}, {4098, 137438937070}, {4098, 137438937073}, {4098, 137438937074}, {4097, 137438937076}};
     // 128:
@@ -351,7 +352,7 @@ int main(int argc, char **argv)
     uint64_t comm_end_lut = iopack->get_comm();
     cout << "LUT Bytes Sent: " << (comm_end_lut - comm_start_lut) << "bytes" << endl;
     //////////////////////step8
-    std::cout << "=========STEP9 EMUX a  ===========" << std::endl;
+    std::cout << "\n=========STEP9 EMUX a  ===========" << std::endl;
     uint64_t *EMUX_output_a = new uint64_t[dim];
     std::cout << "inA[" << 0 << "] = " << inA[0] << std::endl;
     std::cout << "inB[" << 0 << "] = " << inB[0] << std::endl;
@@ -363,16 +364,25 @@ int main(int argc, char **argv)
     {
         aux->multiplexerabs(Drelu, a_bob, EMUX_output_a, dim, 14, 14);
     }
-    std::cout << "EMUX_output_x[" << 0 << "] = " << EMUX_output_a[0] << std::endl;//目前的输出是16383+2**37
+    std::cout << "EMUX_output_a[" << 0 << "] = " << EMUX_output_a[0] << std::endl;//目前的输出是16383+2**37
+
+
+    ext = new XTProtocol(party, iopack, otpack);
+    uint64_t *zext_h = new uint64_t[dim];
+    if (party == ALICE)
+    {
+        ext->z_extend(dim, inA_h, zext_h, 14, 15, nullptr);
+    }
+    else
+    {
+        ext->z_extend(dim, inB_h, zext_h, 14, 15, nullptr);
+    }
+    std::cout << "zext_h[" << 0 << "] = " << zext_h[0] << std::endl;
 
 
 
 
-
-
-
-
-    std::cout << "=========STEP10 multiplication_trunca  ===========" << std::endl;
+    std::cout << "\n=========STEP10 multiplication_trunca  ===========" << std::endl;
     uint64_t comm_start_mult = iopack->get_comm();
 
     //   test_matrix_multiplication(inA, inB, outC, false);
@@ -383,38 +393,58 @@ int main(int argc, char **argv)
         std::cout << "inA_h[" << 0 << "] = " << inA_h[0] << std::endl;
         std::cout << "a_alice[" << 0 << "] = " << a_alice[0] << std::endl;
 
-        prod->matrix_multiplication(dim1, dim2, dim3, a_alice, inA_h, outax, 14, h, 14+h,
+        prod->matrix_multiplication(dim1, dim2, dim3, EMUX_output_a, zext_h, outax, 14, h+1, 14+h+1,
                                     true, true, ::accumulate, mode,
-                                    msbA, msbB);
+                                    0, 0);
     }
     else
     {
         std::cout << "inB_h[" << 0 << "] = " << inB_h[0] << std::endl;
         std::cout << "a_bob[" << 0 << "] = " << a_bob[0] << std::endl;
-        prod->matrix_multiplication(dim1, dim2, dim3, a_bob, inB_h, outax,  14, h, 14+h,
+        prod->matrix_multiplication(dim1, dim2, dim3, EMUX_output_a, zext_h, outax,  14, h+1, 14+h+1,
                                     true, true, ::accumulate, mode,
-                                    msbA, msbB);
+                                    0, 0);
     }
     /////////////////////////
+        if (party == ALICE)
+    {
+        iopack->io->send_data(outax, dim * sizeof(uint64_t));
+    }
+    else
+    {
+        uint64_t *recv_outax = new uint64_t[dim];
+        iopack->io->recv_data(recv_outax, dim * sizeof(uint64_t));
+        std::cout << "total outax =  " << ((outax[0] + recv_outax[0]) & mask_29)<< std::endl;
 
+    }
     std::cout << "mask_16 = "  << mask_16 << std::endl;
     /////////////////////////新增截断
     for (int i = 0; i < dim1 * dim3; i++)
     {
         // outax[i] = outax[i] & mask_bwC;
-        std::cout << "step8 outax[" << i << "] = " << outax[i] << std::endl;
+        // std::cout << "trunc outax[" << i << "] = " << outax[i] << std::endl;
         outax[i] = (outax[i] >> f ) & mask_16;
-        std::cout << "step8 outax[" << i << "] = " << outax[i] << std::endl;
+        std::cout << "trunc outax mask_16[" << i << "] = " << outax[i] << std::endl;
     }
 
     uint64_t comm_end_mult = iopack->get_comm();
     cout << "Mult Bytes Sent: " << (comm_end_mult - comm_start_mult) << "bytes" << endl;
 
 
-    
-    std::cout << "=========STEP11 ax SExt with MSB  ===========" << std::endl; 
+        if (party == ALICE)
+    {
+        iopack->io->send_data(outax, dim * sizeof(uint64_t));
+    }
+    else
+    {
+        uint64_t *recv_outax = new uint64_t[dim];
+        iopack->io->recv_data(recv_outax, dim * sizeof(uint64_t));
+        std::cout << "total outax mask_16 =  " << ((outax[0] + recv_outax[0]) & mask_16)<< std::endl;
+
+    }
+    std::cout << "\n=========STEP11 ax SExt with MSB  ===========" << std::endl; 
     uint64_t *ax_SExt = new uint64_t[dim];
-    ext = new XTProtocol(party, iopack, otpack);
+    
     if (party == ALICE)
     {
         ext->s_extend(dim, outax, ax_SExt, 14+h-f, 37, msbA);
@@ -425,8 +455,18 @@ int main(int argc, char **argv)
     }
     std::cout << "SExt[" << 0 << "] = " << ax_SExt[0] << std::endl;
 
+            if (party == ALICE)
+    {
+        iopack->io->send_data(ax_SExt, dim * sizeof(uint64_t));
+    }
+    else
+    {
+        uint64_t *recv_ax_SExt = new uint64_t[dim];
+        iopack->io->recv_data(recv_ax_SExt, dim * sizeof(uint64_t));
+        std::cout << "total ax_SExt =  " << ((ax_SExt[0] + recv_ax_SExt[0]) & mask_bwC)<< std::endl;
 
-    std::cout << "=========STEP12 d SExt with MSB   ===========" << std::endl;
+    }
+    std::cout << "\n=========STEP12 d SExt with MSB   ===========" << std::endl;
     uint64_t *b_SExt = new uint64_t[dim];
     if (party == ALICE)
     {
@@ -438,16 +478,41 @@ int main(int argc, char **argv)
     }
     std::cout << "SExt[" << 0 << "] = " << b_SExt[0] << std::endl;
 
+        if (party == ALICE)
+    {
+        iopack->io->send_data(b_SExt, dim * sizeof(uint64_t));
+    }
+    else
+    {
+        uint64_t *recv_b_SExt = new uint64_t[dim];
+        iopack->io->recv_data(recv_b_SExt, dim * sizeof(uint64_t));
+        std::cout << "total b_SExt =  " << ((b_SExt[0] + recv_b_SExt[0]) & mask_bwC)<< std::endl;
 
-    std::cout << "=========STEP13 Caculate z=ax+b   ===========" << std::endl;
+    }
+    std::cout << "\n=========STEP13 Caculate z=ax+b   ===========" << std::endl;
     uint64_t *z = new uint64_t[dim];
-    z[0] = ((outax[0] + b_SExt[0]) & mask_bwC);
+
+    std::cout << "b_SExt[" << 0 << "] = " << b_SExt[0] << std::endl;
+    std::cout << "ax_SExt[" << 0 << "] = " << ax_SExt[0] << std::endl;
+
+
+    z[0] = ((ax_SExt[0] + b_SExt[0]) & mask_bwC);
 
     std::cout << "z[" << 0 << "] = " << z[0] << std::endl;
 
     
+        if (party == ALICE)
+    {
+        iopack->io->send_data(z, dim * sizeof(uint64_t));
+    }
+    else
+    {
+        uint64_t *recv_z = new uint64_t[dim];
+        iopack->io->recv_data(recv_z, dim * sizeof(uint64_t));
+        std::cout << "total recv_z =  " << ((z[0] + recv_z[0]) & mask_bwC)<< std::endl;
 
-    // std::cout << "=========STEP13 ADDITION <z>   ===========" << std::endl;
+    }
+    // std::cout << "\n=========STEP13 ADDITION <z>   ===========" << std::endl;
     // uint64_t *outB = new uint64_t[dim];
     // trunc_oracle->truncate(dim, inA, outB, 12, 37, true, nullptr);
 
@@ -456,14 +521,15 @@ int main(int argc, char **argv)
     //     std::cout << "step9 Trunc_outB[" << i << "] = " << outB[i] << std::endl;
     // }
 
-    std::cout << "=========STEP14 Drelu |x|-a  to learn b' ===========" << std::endl;
+    std::cout << "\n=========STEP14 Drelu |x|-a  to learn b' ===========" << std::endl;
     
     uint8_t *Drelu_ = new uint8_t[dim];
     uint8_t *DreluMSB = new uint8_t[dim];
-    
+    // uint64_t fouty = 16384;
     //Drelu = MSB , Alice ^1
     if (party == ALICE)
     {
+        EMUX_output_x[0] = (EMUX_output_x[0] - 16384) & mask_bwC;
         prod->aux->MSB(EMUX_output_x, DreluMSB, dim, bwC);
     }
     else
@@ -487,15 +553,21 @@ int main(int argc, char **argv)
     }
 
 
-    std::cout << "=========STEP15 AND ===========" << std::endl;
+    std::cout << "\n=========STEP15 AND ===========" << std::endl;
     uint8_t *final_b = new uint8_t[dim];
-    uint8_t *Drelu_and = new uint8_t[dim];
-    for (int i = 0; i < dim; i++)
-    {
-        Drelu_and[i] = Drelu_[i] ^ 1;
-    }
-    aux->AND(Drelu, Drelu_and, final_b, dim);
-    std::cout << "=========STEP16 MUX ===========" << std::endl;
+    // uint8_t *Drelu_and = new uint8_t[dim];
+    // for (int i = 0; i < dim; i++)
+    // {
+    //     Drelu_and[i] = Drelu_[i] ; 
+    // }
+    aux->AND(Drelu, Drelu_, final_b, dim);
+
+    std::cout << "Drelu[" << 0 << "] = " << static_cast <int> (Drelu[0]) << std::endl;
+    std::cout << "Drelu_[" << 0 << "] = " <<  static_cast <int> (Drelu_[0]) << std::endl;
+    std::cout << "final_b[" << 0 << "] = " <<  static_cast <int> (final_b[0]) << std::endl;
+
+
+    std::cout << "\n=========STEP16 MUX ===========" << std::endl;
         uint64_t comm_start_mux = iopack->get_comm();
     int bw_x = 37, bw_y = 37;
 
@@ -508,15 +580,19 @@ int main(int argc, char **argv)
     // if (party==ALICE)
     // MUX_sel[0]=MUX_sel[0]^1;
 
-    std::cout << "MUX_data1[" << 0 << "] =" << MUX_data1[0] << std::endl;
+    // std::cout << "MUX_data1[" << 0 << "] =" << MUX_data1[0] << std::endl;
 
-    aux->multiplexer(final_b, z, MUX_output_u, dim, bwC, bwC);
-    std::cout << "MUX_output_u[" << 0 << "] =" << MUX_output_u[0] << std::endl;
+
+    if (party == ALICE)
+        final_b[0] = final_b[0] ^ 1 ;
+
+    aux->multiplexer(Drelu_, z, MUX_output_u, dim, bwC, bwC);
+    // std::cout << "MUX_output_u[" << 0 << "] =" << MUX_output_u[0] << std::endl;
 
     uint64_t comm_end_mux = iopack->get_comm();
     std::cout << "MUX Bytes Sent: " << (comm_end_mux - comm_start_mux) << "bytes" << std::endl;
 
-    std::cout << "=========STEP17 truncation with MSB ===========" << std::endl;
+    std::cout << "\n=========STEP17 truncation with MSB ===========" << std::endl;
     uint64_t *xhalf = new uint64_t[dim];
     if (party == ALICE)
     {
@@ -529,7 +605,7 @@ int main(int argc, char **argv)
     
     std::cout << "xhalf[" << 0 << "] =" << xhalf[0] << std::endl;
 
-    std::cout << "=========STEP18 xhalf with final_b to learn v ===========" << std::endl;
+    std::cout << "\n=========STEP18 xhalf with final_b to learn v ===========" << std::endl;
     uint64_t *MUX_output_v = new uint64_t[dim];
     if (party == ALICE)
     {
@@ -541,14 +617,53 @@ int main(int argc, char **argv)
     }
     
 
-    std::cout << "=========STEP18 y = xhalf + u + v ===========" << std::endl;
+    std::cout << "\n=========STEP19 y = xhalf + u + v ===========" << std::endl;
+
+
+
+    std::cout << "uuu MUX_output_u =  " << MUX_output_u[0]<< std::endl;
+    if (party == ALICE)
+    {
+        iopack->io->send_data(MUX_output_u, dim * sizeof(uint64_t));
+    }
+    else
+    {
+        uint64_t *recv_MUX_output_u = new uint64_t[dim];
+        iopack->io->recv_data(recv_MUX_output_u, dim * sizeof(uint64_t));
+        std::cout << "total MUX_output_u =  " << ((MUX_output_u[0] + recv_MUX_output_u[0]) & mask_bwC)<< "\n" << std::endl;
+
+    }
+    std::cout << "vvv MUX_output_v =  " << MUX_output_v[0]<< std::endl;
+            if (party == ALICE)
+    {
+        iopack->io->send_data(MUX_output_v, dim * sizeof(uint64_t));
+    }
+    else
+    {
+        uint64_t *recv_MUX_output_v = new uint64_t[dim];
+        iopack->io->recv_data(recv_MUX_output_v, dim * sizeof(uint64_t));
+        std::cout << "total MUX_output_v =  " << ((MUX_output_v[0] + recv_MUX_output_v[0]) & mask_bwC)<< std::endl;
+
+    }
+    std::cout << "xxx xhalf =  " << xhalf[0]<< std::endl;
+     if (party == ALICE)
+    {
+        iopack->io->send_data(xhalf, dim * sizeof(uint64_t));
+    }
+    else
+    {
+        uint64_t *recv_xhalf = new uint64_t[dim];
+        iopack->io->recv_data(recv_xhalf, dim * sizeof(uint64_t));
+        std::cout << "total xhalf =  " << ((xhalf[0] + recv_xhalf[0]) & mask_bwC)<< std::endl;
+
+    }
     uint64_t *y= new uint64_t[dim];
     for ( int i=0; i<dim;i++)
     {
         y[i] = (xhalf[i] + MUX_output_v[i] + MUX_output_u[i]) & mask_bwC;
     }
     std::cout << "y[" << 0 << "] = " << y[0] << std::endl;
-    std::cout << "=========END verification ===========" << std::endl;
+    std::cout << "\n=========END verification ===========" << std::endl;
        if (party == ALICE)
     {
         iopack->io->send_data(y, dim * sizeof(uint64_t));
@@ -557,7 +672,7 @@ int main(int argc, char **argv)
     {
         uint64_t *recv_y = new uint64_t[dim];
         iopack->io->recv_data(recv_y, dim * sizeof(uint64_t));
-        std::cout << "total y = y0 + y1 =  " << ((y[0] + recv_y[0]) & mask_bwC)<< std::endl;
+        std::cout << "total y = y0 + y1 =  " << ((y[0] + recv_y[0]) & mask_bwC) << ", real num: " << double(((y[0] + recv_y[0]) & mask_bwC)) / 4096 << std::endl;
 
 
         std::cout << "ax +b =  " << (((inA[0] + inB[0])*a_bob[0] + b_bob[0]) & mask_bwC )<< std::endl;
@@ -565,7 +680,7 @@ int main(int argc, char **argv)
         std::cout << "The result should be calculate_GELU = " << calculate_GELU(inA[0] + inB[0]) << std::endl;
     }
     
-    // std::cout << "=========STEP10 CMP   ===========" << std::endl;
+    // std::cout << "\n=========STEP10 CMP   ===========" << std::endl;
 
     // // 比较两个数
     // // ALICE 和 BOB 分别输入自己的数据
@@ -627,7 +742,7 @@ int main(int argc, char **argv)
     // cout << "CMP Bytes Sent: " << (comm_end_cmp - comm_start_cmp) <<"bytes"<< endl;
 
     ////////////////////////////////step12
-    // std::cout << "=========STEP12 MUX   ===========" << std::endl;
+    // std::cout << "\n=========STEP12 MUX   ===========" << std::endl;
     // // aux = new AuxProtocols(party, iopack, otpack);
     // uint64_t comm_start_mux = iopack->get_comm();
     // uint8_t *MUX_sel = new uint8_t[dim1];

@@ -110,8 +110,8 @@ void AuxProtocols::multiplexer(uint8_t *sel, uint64_t *x, uint64_t *y,
     // uint64_t comm_END_mux = iopack->get_comm();
     // cout << "INNER MUX Bytes Sent: " << (comm_END_mux - comm_start_mux) <<"bytes"<< endl;
   }
-  std::cout << "data_R[" << 0 << "] = " << data_R[0] << std::endl;
-  std::cout << "data_S[" << 0 << "] = " << data_S[0] << std::endl;
+  // std::cout << "data_R[" << 0 << "] = " << data_R[0] << std::endl;
+  // std::cout << "data_S[" << 0 << "] = " << data_S[0] << std::endl;
   for (int i = 0; i < size; i++)
   {
     y[i] = ((x[i] * uint64_t(sel[i]) + (data_R[i] - data_S[i])) & mask_y);
