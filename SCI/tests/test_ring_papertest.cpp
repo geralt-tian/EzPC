@@ -96,6 +96,25 @@ double calculate_GELU(uint64_t value)
     return 0.5 * a * (1 + tanh_part);
 }
 
+uint64_t decode_ring(uint64_t input, uint64_t bw)
+{
+    // 从环上解码值
+    uint64_t mask = (bw == 64) ? ~0ULL : (1ULL << bw) - 1;
+    uint64_t half = 1ULL << (bw - 1);
+
+    // std::cout << "input = " << input << std::endl;
+    // std::cout << "half = " << half << std::endl;
+    if (input < half)
+    {
+        return input;
+    }
+    else
+    {
+        return (1ULL << (bw)) - input  ;
+    }
+}
+
+
 void assign_lower_h_bits(int32_t dim1, int32_t dim2, int32_t dim3, uint64_t *inA, uint64_t *inB, uint64_t *inA_, uint64_t *inB_, int32_t h)
 {
     // Create a mask that has the lowest h bits set to 1
@@ -153,7 +172,8 @@ int main(int argc, char **argv)
     // prg.random_data(inA, dim1 * dim2 * sizeof(uint64_t));
     // prg.random_data(inB, dim2 * dim3 * sizeof(uint64_t));
 
-    inA[0] = 8000; //(0-16383)
+    // inA[0] = 137438953472 - 1118000; //(0-16383) 137438953472
+    inA[0] = 3748;
     inB[0] = 6383;
     std::cout << "input inA[" << 0 << "] = " << inA[0] << std::endl;
     std::cout << "input inB[" << 0 << "] = " << inB[0] << std::endl;
@@ -388,7 +408,7 @@ int main(int argc, char **argv)
         std::cout << "inA_h[" << 0 << "] = " << inA_h[0] << std::endl;
         std::cout << "a_alice[" << 0 << "] = " << a_alice[0] << std::endl;
 
-        prod->matrix_multiplication(dim1, dim2, dim3, EMUX_output_a, zext_h, outax, 14, h + 1, 14 + h + 1,
+        prod->matrix_multiplication(dim1, dim2, dim3, EMUX_output_a, zext_h, outax, 14 , h + 1, 14 + h ,
                                     true, true, ::accumulate, mode,
                                     0, 0);
     }
@@ -396,7 +416,7 @@ int main(int argc, char **argv)
     {
         std::cout << "inB_h[" << 0 << "] = " << inB_h[0] << std::endl;
         std::cout << "a_bob[" << 0 << "] = " << a_bob[0] << std::endl;
-        prod->matrix_multiplication(dim1, dim2, dim3, EMUX_output_a, zext_h, outax, 14, h + 1, 14 + h + 1,
+        prod->matrix_multiplication(dim1, dim2, dim3, EMUX_output_a, zext_h, outax, 14 , h + 1, 14 + h ,
                                     true, true, ::accumulate, mode,
                                     0, 0);
     }
@@ -570,11 +590,21 @@ int main(int argc, char **argv)
 
     // if (party == ALICE)
     //     final_b[0] = final_b[0] ^ 1;
-    uint8_t *uinput = new uint8_t[dim];
 
-    for(int i = 0; i < dim; i++)
+    uint8_t *uinput = new uint8_t[dim];
+    if (party == ALICE)
     {
-        uinput[i] = Drelu_[i]^Drelu[i];
+        for (int i = 0; i < dim; i++)
+        {
+            uinput[i] = Drelu_[i] ^ 1;
+        }
+    }
+    else
+    {
+        for (int i = 0; i < dim; i++)
+        {
+            uinput[i] = Drelu_[i];
+        }
     }
 
     aux->multiplexer(uinput, z, MUX_output_u, dim, bwC, bwC);
@@ -597,15 +627,31 @@ int main(int argc, char **argv)
     std::cout << "xhalf[" << 0 << "] =" << xhalf[0] << std::endl;
 
     std::cout << "\n=========STEP18 xhalf with final_b to learn v ===========" << std::endl;
-    uint64_t *MUX_output_v = new uint64_t[dim];
+
+    uint64_t *MUX_output_t = new uint64_t[dim];
+    aux->multiplexer(Drelu_, xhalf, MUX_output_t, dim, bwC, bwC);
+
+    uint8_t *vinput = new uint8_t[dim];
     if (party == ALICE)
     {
-        aux->multiplexer(final_b, xhalf, MUX_output_v, dim, bwC, bwC);
+        for (size_t i = 0; i < dim; i++)
+        {
+            vinput[i] = Drelu[i] ;
+        }
     }
     else
     {
-        aux->multiplexer(final_b, xhalf, MUX_output_v, dim, bwC, bwC);
+        for (size_t i = 0; i < dim; i++)
+        {
+            vinput[i] = Drelu[i];
+        }
     }
+
+    std::cout << "vinput[" << 0 << "] = " << static_cast<int>(vinput[0]) << std::endl;
+
+    uint64_t *MUX_output_v = new uint64_t[dim];
+
+    aux->multiplexerabs(vinput, MUX_output_t, MUX_output_v, dim, bwC, bwC);
 
     std::cout << "\n=========STEP19 y = xhalf + u + v ===========" << std::endl;
 
@@ -658,7 +704,7 @@ int main(int argc, char **argv)
     {
         uint64_t *recv_y = new uint64_t[dim];
         iopack->io->recv_data(recv_y, dim * sizeof(uint64_t));
-        std::cout << "total y = y0 + y1 =  " << ((y[0] + recv_y[0]) & mask_bwC) << ", real num: " << double(((y[0] + recv_y[0]) & mask_bwC)) / 4096 << std::endl;
+        std::cout << "total y = y0 + y1 =  " << ((y[0] + recv_y[0]) & mask_bwC) << ", real num: " << (double)decode_ring((y[0] + recv_y[0])&mask_bwC,37) / 4096 << std::endl;
 
         std::cout << "ax +b =  " << (((inA[0] + inB[0]) * a_bob[0] + b_bob[0]) & mask_bwC) << std::endl;
         std::cout << "ax +b  >> 12=  " << ((((inA[0] + inB[0]) * a_bob[0] + b_bob[0]) & mask_bwC) >> 12) << std::endl;
