@@ -153,7 +153,7 @@ int main(int argc, char **argv)
     // prg.random_data(inA, dim1 * dim2 * sizeof(uint64_t));
     // prg.random_data(inB, dim2 * dim3 * sizeof(uint64_t));
 
-    inA[0] = 18000; //(0-16383)
+    inA[0] = 8000; //(0-16383)
     inB[0] = 6383;
     std::cout << "input inA[" << 0 << "] = " << inA[0] << std::endl;
     std::cout << "input inB[" << 0 << "] = " << inB[0] << std::endl;
@@ -570,8 +570,14 @@ int main(int argc, char **argv)
 
     // if (party == ALICE)
     //     final_b[0] = final_b[0] ^ 1;
+    uint8_t *uinput = new uint8_t[dim];
 
-    aux->multiplexer(Drelu_, z, MUX_output_u, dim, bwC, bwC);
+    for(int i = 0; i < dim; i++)
+    {
+        uinput[i] = Drelu_[i]^Drelu[i];
+    }
+
+    aux->multiplexer(uinput, z, MUX_output_u, dim, bwC, bwC);
     std::cout << "MUX_output_u[" << 0 << "] =" << MUX_output_u[0] << std::endl;
 
     uint64_t comm_end_mux = iopack->get_comm();
