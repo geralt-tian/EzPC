@@ -45,12 +45,12 @@ LinearOT *prod;
 XTProtocol *ext;
 
 // 全局变量
-int dim1 = 1;
-int dim2 = 1;
-int dim3 = 1;
+// int dim1 = 1;
+// int dim2 = 1;
+// int dim3 = 1;
 int bwA = 22;
 int bwB = 15;
-int bwC = bwA + bwB; // 矩阵位宽
+int bwC = 37; // 矩阵位宽
 uint64_t mask_bwC = (bwC == 64 ? -1 : ((1ULL << bwC) - 1));
 uint64_t mask_16 = (16 == 64 ? -1 : ((1ULL << 16) - 1));
 uint64_t mask_29 = (29 == 64 ? -1 : ((1ULL << 29) - 1));
@@ -67,6 +67,7 @@ uint64_t alpha = 4;
 uint64_t alpha_ = 1ULL << 14;
 uint64_t beta = alpha_ * 2;
 uint64_t h = 14;
+uint64_t la = 14;
 uint64_t f = 12;
 uint64_t s = 7;
 // uint64_t mask_bwC = (bwC == 64 ? -1 : ((1ULL << bwC) - 1));
@@ -110,32 +111,49 @@ uint64_t decode_ring(uint64_t input, uint64_t bw)
     }
     else
     {
-        return (1ULL << (bw)) - input  ;
+        return (1ULL << (bw)) - input;
     }
 }
 
+// void assign_lower_h_bits(int32_t dim1, int32_t dim2, int32_t dim3, uint64_t *inA, uint64_t *inB, uint64_t *inA_, uint64_t *inB_, int32_t h)
+// {
+//     // Create a mask that has the lowest h bits set to 1
+//     uint64_t mask = (h == 64) ? ~0ULL : (1ULL << h) - 1;
 
-void assign_lower_h_bits(int32_t dim1, int32_t dim2, int32_t dim3, uint64_t *inA, uint64_t *inB, uint64_t *inA_, uint64_t *inB_, int32_t h)
+//     // Assign the lower h bits from inA to inA_
+//     for (int i = 0; i < dim1; i++)
+//     {
+//         for (int j = 0; j < dim2; j++)
+//         {
+//             inA_[i * dim2 + j] = inA[i * dim2 + j] & mask;
+//         }
+//     }
+
+//     // Assign the lower h bits from inB to inB_
+//     for (int i = 0; i < dim2; i++)
+//     {
+//         for (int j = 0; j < dim3; j++)
+//         {
+//             inB_[i * dim3 + j] = inB[i * dim3 + j] & mask;
+//         }
+//     }
+// }
+
+void assign_lower_h_bits(int32_t dim, uint64_t *inA, uint64_t *inB, uint64_t *inA_, uint64_t *inB_, int32_t h)
 {
     // Create a mask that has the lowest h bits set to 1
     uint64_t mask = (h == 64) ? ~0ULL : (1ULL << h) - 1;
 
     // Assign the lower h bits from inA to inA_
-    for (int i = 0; i < dim1; i++)
+    for (int i = 0; i < dim; i++)
     {
-        for (int j = 0; j < dim2; j++)
-        {
-            inA_[i * dim2 + j] = inA[i * dim2 + j] & mask;
-        }
+        inA_[i] = inA[i] & mask;
     }
 
     // Assign the lower h bits from inB to inB_
-    for (int i = 0; i < dim2; i++)
+    for (int i = 0; i < dim; i++)
     {
-        for (int j = 0; j < dim3; j++)
-        {
-            inB_[i * dim3 + j] = inB[i * dim3 + j] & mask;
-        }
+        inB_[i] = inB[i] & mask;
     }
 }
 
@@ -163,33 +181,20 @@ int main(int argc, char **argv)
     prod = new LinearOT(party, iopack, otpack);
 
     PRG128 prg; //(fix_key);
+    int dim = 100;
+    uint64_t *inA = new uint64_t[dim]; // 1*100
+    uint64_t *inB = new uint64_t[dim]; // 100*35
 
-    uint64_t *inA = new uint64_t[dim1 * dim2]; // 1*100
-    uint64_t *inB = new uint64_t[dim2 * dim3]; // 100*35
-    int dim = (::accumulate ? dim1 * dim3 : dim1 * dim2 * dim3);
     uint64_t *outax = new uint64_t[dim];
-    // 使用PRG128分配并初始化随机矩阵inA和inB
-    // prg.random_data(inA, dim1 * dim2 * sizeof(uint64_t));
-    // prg.random_data(inB, dim2 * dim3 * sizeof(uint64_t));
-
-    // inA[0] = 137438953472 - 1118000; //(0-16383) 137438953472
-    inA[0] = 3748;
-    inB[0] = 6383;
+    for (int i = 0; i < dim; i++)
+    {
+        inA[i] = 1000 + i * 100;
+        inB[i] = 1000 + i * 100;
+    }
     std::cout << "input inA[" << 0 << "] = " << inA[0] << std::endl;
     std::cout << "input inB[" << 0 << "] = " << inB[0] << std::endl;
-    /////////////step2 //check
-    //   inA[0] = inA[0]+alpha_;
-    //   inB[0] = inB[0]+alpha_;
-
-    // uint64_t *inA_ = new uint64_t[dim1 * dim2]; // 1*100
-    // uint64_t *inB_ = new uint64_t[dim2 * dim3]; // 100*35
-
-    // inA_[0] = (inA[0] + alpha_) & mask_bwC;
-    // inB_[0] = (inB[0]) & mask_bwC;
-    // std::cout << "inB_[" << 0 << "] = " << inB_[0] << std::endl;
-    // step5 //check
-    uint64_t *inA_h = new uint64_t[dim1 * dim2]; // 1*100
-    uint64_t *inB_h = new uint64_t[dim2 * dim3]; // 100*35
+    uint64_t *inA_h = new uint64_t[dim]; // 1*100
+    uint64_t *inB_h = new uint64_t[dim]; // 100*35
 
     std::cout << "\n=========STEP4 use DRelu to learn [[b]]^B===========" << std::endl;
 
@@ -239,7 +244,7 @@ int main(int argc, char **argv)
     std::cout << "EMUX_output_x[" << 0 << "] = " << EMUX_output_x[0] << std::endl; // 目前的输出是16383+2**37
 
     std::cout << "\n=========STEP6 extract the lower h=14 bits===========" << std::endl;
-    assign_lower_h_bits(dim1, dim2, dim3, inA, inB, inA_h, inB_h, h);
+    assign_lower_h_bits(dim, inA, inB, inA_h, inB_h, h);
 
     std::cout << "inA_h[" << 0 << "] = " << inA_h[0] << std::endl;
     std::cout << "inB_h[" << 0 << "] = " << inB_h[0] << std::endl;
@@ -253,12 +258,12 @@ int main(int argc, char **argv)
     if (party == sci::ALICE)
     {
         trunc_oracle->truncate_and_reduce(dim, inA_h, outtrunc, h - s, h); // shift=h-s,hypothesis s=7  truncate就是为了分组，截断后7位，为了前8位可以映射到对应的table
-        // std::cout << "outtrunc[" << 0 << "] = " << outtrunc[0] << std::endl;
+                                                                           // std::cout << "outtrunc[" << 0 << "] = " << outtrunc[0] << std::endl;
     }
     else
     {
         trunc_oracle->truncate_and_reduce(dim, inB_h, outtrunc, h - s, h); // shift=h-s,hypothesis s=7,outtrunc是0-127
-        // std::cout << "outtrunc[" << 0 << "] = " << outtrunc[0] << std::endl; // outtrunc是<i>，范围是0-127
+                                                                           // std::cout << "outtrunc[" << 0 << "] = " << outtrunc[0] << std::endl; // outtrunc是<i>，范围是0-127
     }
 
     std::cout << std::dec << "outtrunc = " << outtrunc[0] << std::endl;
@@ -273,21 +278,18 @@ int main(int argc, char **argv)
     // 128:
     std::vector<std::vector<uint64_t>> data = {{0, 0}, {204, 16380}, {407, 16367}, {610, 16345}, {812, 16314}, {1013, 16275}, {1211, 16228}, {1407, 16172}, {1600, 16109}, {1790, 16038}, {1977, 15959}, {2160, 15874}, {2339, 15782}, {2514, 15684}, {2684, 15579}, {2850, 15470}, {3010, 15355}, {3165, 15236}, {3315, 15112}, {3459, 14985}, {3597, 14855}, {3729, 14722}, {3855, 14587}, {3975, 14450}, {4089, 14312}, {4197, 14173}, {4298, 14033}, {4394, 13894}, {4483, 13755}, {4566, 13617}, {4642, 13481}, {4713, 13346}, {4778, 13213}, {4837, 13083}, {4890, 12955}, {4938, 12830}, {4981, 12709}, {5018, 12590}, {5050, 12476}, {5078, 12365}, {5100, 12258}, {5119, 12155}, {5133, 12056}, {5143, 11962}, {5149, 11871}, {5151, 11785}, {5151, 11704}, {5147, 11626}, {5140, 11553}, {5130, 11483}, {5118, 11418}, {5104, 11356}, {5087, 11299}, {5069, 11245}, {5049, 11194}, {5027, 11147}, {5004, 11102}, {4980, 11061}, {4955, 11023}, {4929, 10987}, {4903, 10953}, {4876, 10922}, {4849, 10892}, {4821, 10864}, {4794, 10838}, {4766, 10813}, {4739, 10789}, {4711, 10767}, {4684, 10745}, {4658, 10723}, {4631, 10702}, {4606, 10682}, {4580, 10661}, {4556, 10641}, {4532, 10620}, {4509, 10599}, {4486, 10577}, {4464, 10555}, {4443, 10532}, {4423, 10509}, {4404, 10484}, {4385, 10459}, {4367, 10433}, {4350, 10406}, {4334, 10377}, {4318, 10348}, {4303, 10317}, {4289, 10286}, {4276, 10253}, {4263, 10218}, {4251, 10183}, {4240, 10146}, {4230, 10109}, {4220, 10070}, {4210, 10030}, {4202, 9988}, {4193, 9946}, {4186, 9902}, {4179, 9857}, {4172, 9812}, {4166, 9765}, {4160, 9717}, {4154, 9668}, {4149, 9619}, {4145, 9568}, {4141, 9516}, {4137, 9464}, {4133, 9411}, {4130, 9357}, {4126, 9303}, {4124, 9248}, {4121, 9192}, {4119, 9135}, {4116, 9079}, {4114, 9021}, {4113, 8963}, {4111, 8905}, {4109, 8846}, {4108, 8786}, {4107, 8727}, {4106, 8667}, {4105, 8606}, {4104, 8545}, {4103, 8484}, {4102, 8423}, {4101, 8362}, {4101, 8300}, {4100, 8238}};
 
-    int32_t T_size = sizeof(uint64_t) * 8;
-    int bw_xlut = 7;
-    int bw_ylut;
-    // aux = new AuxProtocols(party, iopack, otpack);
-    if (T_size == 8)
-        bw_ylut = 7;
-    else
-        bw_ylut = 29;
     uint64_t *a_alice = new uint64_t[dim];
     uint64_t *b_alice = new uint64_t[dim];
-    a_alice[0] = 0;
-    b_alice[0] = 0;
+
+    for (size_t i = 0; i < dim; i++)
+    {
+        a_alice[i] = 0;
+        b_alice[i] = 0;
+    }
+
     uint64_t **spec_a = new uint64_t *[dim];
     uint64_t *a_bob = new uint64_t[dim];
-    uint64_t N = 1ULL << bw_xlut;
+    uint64_t N = 1ULL << 7;
 
     for (int i = 0; i < dim; i++)
     {
@@ -319,16 +321,21 @@ int main(int argc, char **argv)
     else
     { // party == BOB
         iopack->io->recv_data(outtrunc1, dim * sizeof(uint64_t));
-        outtrunc_a[0] = (outtrunc[0] + outtrunc1[0]) & ((1ULL << 7) - 1);
+
+        for (int i = 0; i < dim; i++)
+        {
+            outtrunc_a[i] = (outtrunc[i] + outtrunc1[i]) & ((1ULL << 7) - 1);
+        }
+
         std::cout << "outtrunc_a[" << 0 << "] = " << outtrunc_a[0] << std::endl;
     }
     if (party == ALICE)
     {
-        aux->lookup_table<uint64_t>(spec_a, nullptr, nullptr, dim, bw_xlut, 14); // bw_xlut是outtrunc的位宽
+        aux->lookup_table<uint64_t>(spec_a, nullptr, nullptr, dim, 7, la); // bw_xlut是outtrunc的位宽
     }
     else
-    {                                                                              // party == BOB
-        aux->lookup_table<uint64_t>(nullptr, outtrunc_a, a_bob, dim, bw_xlut, 14); // a_bob是查询到的斜率
+    {                                                                        // party == BOB
+        aux->lookup_table<uint64_t>(nullptr, outtrunc_a, a_bob, dim, 7, la); // a_bob是查询到的斜率
     }
     if (party != ALICE)
         std::cout << "a_bob[" << 0 << "] = " << a_bob[0] << std::endl;
@@ -359,11 +366,11 @@ int main(int argc, char **argv)
     // }
     if (party == ALICE)
     {
-        aux->lookup_table<uint64_t>(spec_b, nullptr, nullptr, dim, bw_xlut, 14);
+        aux->lookup_table<uint64_t>(spec_b, nullptr, nullptr, dim, 7, la);
     }
     else
-    {                                                                              // party == BOB
-        aux->lookup_table<uint64_t>(nullptr, outtrunc_a, b_bob, dim, bw_xlut, 14); // b_bob是查询到的截距  重要问题，这里的outtrunc应该是两边share加起来，代码里只有Bob的outtrunc check
+    {                                                                        // party == BOB
+        aux->lookup_table<uint64_t>(nullptr, outtrunc_a, b_bob, dim, 7, la); // b_bob是查询到的截距  重要问题，这里的outtrunc应该是两边share加起来，代码里只有Bob的outtrunc check
     }
     if (party != ALICE)
         std::cout << "b_bob[" << 0 << "] = " << b_bob[0] << std::endl;
@@ -377,11 +384,11 @@ int main(int argc, char **argv)
     std::cout << "inB[" << 0 << "] = " << inB[0] << std::endl;
     if (party == ALICE)
     {
-        aux->multiplexerabs(Drelu, a_alice, EMUX_output_a, dim, 14, 14);
+        aux->multiplexerabs(Drelu, a_alice, EMUX_output_a, dim, la, la);
     }
     else
     {
-        aux->multiplexerabs(Drelu, a_bob, EMUX_output_a, dim, 14, 14);
+        aux->multiplexerabs(Drelu, a_bob, EMUX_output_a, dim, la, la);
     }
     std::cout << "EMUX_output_a[" << 0 << "] = " << EMUX_output_a[0] << std::endl; // 目前的输出是16383+2**37
 
@@ -389,11 +396,11 @@ int main(int argc, char **argv)
     uint64_t *zext_h = new uint64_t[dim];
     if (party == ALICE)
     {
-        ext->z_extend(dim, inA_h, zext_h, 14, 15, nullptr);
+        ext->z_extend(dim, inA_h, zext_h, h, 15, nullptr);
     }
     else
     {
-        ext->z_extend(dim, inB_h, zext_h, 14, 15, nullptr);
+        ext->z_extend(dim, inB_h, zext_h, h, 15, nullptr);
     }
     std::cout << "zext_h[" << 0 << "] = " << zext_h[0] << std::endl;
 
@@ -408,17 +415,17 @@ int main(int argc, char **argv)
         std::cout << "inA_h[" << 0 << "] = " << inA_h[0] << std::endl;
         std::cout << "a_alice[" << 0 << "] = " << a_alice[0] << std::endl;
 
-        prod->matrix_multiplication(dim1, dim2, dim3, EMUX_output_a, zext_h, outax, 14 , h + 1, 14 + h ,
-                                    true, true, ::accumulate, mode,
-                                    0, 0);
+        prod->hadamard_product(dim, EMUX_output_a, zext_h, outax, 14, h + 1, 14 + h + 1,
+                               true, true, mode,
+                               0, 0);
     }
     else
     {
         std::cout << "inB_h[" << 0 << "] = " << inB_h[0] << std::endl;
         std::cout << "a_bob[" << 0 << "] = " << a_bob[0] << std::endl;
-        prod->matrix_multiplication(dim1, dim2, dim3, EMUX_output_a, zext_h, outax, 14 , h + 1, 14 + h ,
-                                    true, true, ::accumulate, mode,
-                                    0, 0);
+        prod->hadamard_product(dim, EMUX_output_a, zext_h, outax, 14, h + 1, 14 + h + 1,
+                               true, true, mode,
+                               0, 0);
     }
     /////////////////////////
     if (party == ALICE)
@@ -433,12 +440,12 @@ int main(int argc, char **argv)
     }
     std::cout << "mask_16 = " << mask_16 << std::endl;
     /////////////////////////新增截断
-    for (int i = 0; i < dim1 * dim3; i++)
+    for (int i = 0; i < dim; i++)
     {
         // outax[i] = outax[i] & mask_bwC;
         // std::cout << "trunc outax[" << i << "] = " << outax[i] << std::endl;
         outax[i] = (outax[i] >> f) & mask_16;
-        std::cout << "trunc outax mask_16[" << i << "] = " << outax[i] << std::endl;
+        // std::cout << "trunc outax mask_16[" << i << "] = " << outax[i] << std::endl;
     }
 
     uint64_t comm_end_mult = iopack->get_comm();
@@ -459,11 +466,11 @@ int main(int argc, char **argv)
 
     if (party == ALICE)
     {
-        ext->s_extend(dim, outax, ax_SExt, 14 + h - f, 37, msbA);
+        ext->s_extend(dim, outax, ax_SExt, la + h - f, bwC, msbA);
     }
     else
     {
-        ext->s_extend(dim, outax, ax_SExt, 14 + h - f, 37, msbB);
+        ext->s_extend(dim, outax, ax_SExt, la + h - f, bwC, msbB);
     }
     std::cout << "SExt[" << 0 << "] = " << ax_SExt[0] << std::endl;
 
@@ -481,11 +488,11 @@ int main(int argc, char **argv)
     uint64_t *b_SExt = new uint64_t[dim];
     if (party == ALICE)
     {
-        ext->s_extend(dim, b_alice, b_SExt, 14, 37, msbA);
+        ext->s_extend(dim, b_alice, b_SExt, la, bwC, msbA);
     }
     else
     {
-        ext->s_extend(dim, b_bob, b_SExt, 14, 37, msbA);
+        ext->s_extend(dim, b_bob, b_SExt, la, bwC, msbA);
     }
     std::cout << "SExt[" << 0 << "] = " << b_SExt[0] << std::endl;
 
@@ -505,7 +512,8 @@ int main(int argc, char **argv)
     std::cout << "b_SExt[" << 0 << "] = " << b_SExt[0] << std::endl;
     std::cout << "ax_SExt[" << 0 << "] = " << ax_SExt[0] << std::endl;
 
-    z[0] = ((ax_SExt[0] + b_SExt[0]) & mask_bwC);
+    for (int i = 0; i < dim; i++)
+        z[i] = ((ax_SExt[i] + b_SExt[i]) & mask_bwC);
 
     std::cout << "z[" << 0 << "] = " << z[0] << std::endl;
 
@@ -536,7 +544,11 @@ int main(int argc, char **argv)
     // Drelu = MSB , Alice ^1
     if (party == ALICE)
     {
-        EMUX_output_x[0] = (EMUX_output_x[0] - 16384) & mask_bwC;
+        for (int i = 0; i < dim; i++)
+        {
+            EMUX_output_x[i] = (EMUX_output_x[i] - 16384) & mask_bwC;
+        }
+
         prod->aux->MSB(EMUX_output_x, DreluMSB, dim, bwC);
     }
     else
@@ -560,29 +572,34 @@ int main(int argc, char **argv)
     }
 
     std::cout << "\n=========STEP15 AND ===========" << std::endl;
-    uint8_t *final_b = new uint8_t[dim];
+    // uint8_t *final_b = new uint8_t[dim];
     // uint8_t *Drelu_and = new uint8_t[dim];
     // if (party == ALICE)
     //     for (int i = 0; i < dim; i++)
     //     {
     //         Drelu_and[i] = Drelu_[i];
     //     }
-    aux->AND(Drelu, Drelu_, final_b, dim);
+    // aux->AND(Drelu, Drelu_, final_b, dim);
 
-    std::cout << "Drelu[" << 0 << "] = " << static_cast<int>(Drelu[0]) << std::endl;
-    std::cout << "Drelu_[" << 0 << "] = " << static_cast<int>(Drelu_[0]) << std::endl;
-    std::cout << "final_b[" << 0 << "] = " << static_cast<int>(final_b[0]) << std::endl;
+    for (int i = 0; i < dim; i++)
+    {
+        std::cout << "\nDrelu[" << i << "] = " << static_cast<int>(Drelu[i]) << std::endl;
+        std::cout << "Drelu_[" << i << "] = " << static_cast<int>(Drelu_[i]) << std::endl;
+        // std::cout << "final_b[" << i << "] = " << static_cast<int>(final_b[i]) << std::endl;
+    }
 
     std::cout << "\n=========STEP16 MUX ===========" << std::endl;
     uint64_t comm_start_mux = iopack->get_comm();
-    int bw_x = 37, bw_y = 37;
 
-    uint64_t *MUX_data1 = new uint64_t[dim1];
-    uint64_t *MUX_output_u = new uint64_t[dim1];
-    MUX_output_u[0] = 0;
+    uint64_t *MUX_data1 = new uint64_t[dim];
+    uint64_t *MUX_output_u = new uint64_t[dim];
+    for (int i = 0; i < dim; i++)
+    {
+        MUX_output_u[i] = 0;
+    }
 
     // MUX_data1[0] = z[0];
-    MUX_data1[0] = z[0];
+    // MUX_data1[0] = z[0];
     // if (party==ALICE)
     // MUX_sel[0]=MUX_sel[0]^1;
 
@@ -631,27 +648,27 @@ int main(int argc, char **argv)
     uint64_t *MUX_output_t = new uint64_t[dim];
     aux->multiplexer(Drelu_, xhalf, MUX_output_t, dim, bwC, bwC);
 
-    uint8_t *vinput = new uint8_t[dim];
-    if (party == ALICE)
-    {
-        for (size_t i = 0; i < dim; i++)
-        {
-            vinput[i] = Drelu[i] ;
-        }
-    }
-    else
-    {
-        for (size_t i = 0; i < dim; i++)
-        {
-            vinput[i] = Drelu[i];
-        }
-    }
+    // uint8_t *vinput = new uint8_t[dim];
+    // if (party == ALICE)
+    // {
+    //     for (size_t i = 0; i < dim; i++)
+    //     {
+    //         vinput[i] = Drelu[i];
+    //     }
+    // }
+    // else
+    // {
+    //     for (size_t i = 0; i < dim; i++)
+    //     {
+    //         vinput[i] = Drelu[i];
+    //     }
+    // }
 
-    std::cout << "vinput[" << 0 << "] = " << static_cast<int>(vinput[0]) << std::endl;
+    // std::cout << "vinput[" << 0 << "] = " << static_cast<int>(vinput[0]) << std::endl;
 
     uint64_t *MUX_output_v = new uint64_t[dim];
 
-    aux->multiplexerabs(vinput, MUX_output_t, MUX_output_v, dim, bwC, bwC);
+    aux->multiplexerabs(Drelu, MUX_output_t, MUX_output_v, dim, bwC, bwC);
 
     std::cout << "\n=========STEP19 y = xhalf + u + v ===========" << std::endl;
 
@@ -693,8 +710,9 @@ int main(int argc, char **argv)
     for (int i = 0; i < dim; i++)
     {
         y[i] = (xhalf[i] + MUX_output_v[i] + MUX_output_u[i]) & mask_bwC;
+        std::cout << "y[" << i << "] = " << y[i] << std::endl;
     }
-    std::cout << "y[" << 0 << "] = " << y[0] << std::endl;
+
     std::cout << "\n=========END verification ===========" << std::endl;
     if (party == ALICE)
     {
@@ -704,11 +722,20 @@ int main(int argc, char **argv)
     {
         uint64_t *recv_y = new uint64_t[dim];
         iopack->io->recv_data(recv_y, dim * sizeof(uint64_t));
-        std::cout << "total y = y0 + y1 =  " << ((y[0] + recv_y[0]) & mask_bwC) << ", real num: " << (double)decode_ring((y[0] + recv_y[0])&mask_bwC,37) / 4096 << std::endl;
+        // std::cout << "total y = y0 + y1 =  " << ((y[0] + recv_y[0]) & mask_bwC) << ", real num: " << (double)decode_ring((y[0] + recv_y[0])&mask_bwC,37) / 4096 << std::endl;
 
-        std::cout << "ax +b =  " << (((inA[0] + inB[0]) * a_bob[0] + b_bob[0]) & mask_bwC) << std::endl;
-        std::cout << "ax +b  >> 12=  " << ((((inA[0] + inB[0]) * a_bob[0] + b_bob[0]) & mask_bwC) >> 12) << std::endl;
-        std::cout << "The result should be calculate_GELU = " << calculate_GELU(inA[0] + inB[0]) << std::endl;
+        // std::cout << "ax +b =  " << (((inA[0] + inB[0]) * a_bob[0] + b_bob[0]) & mask_bwC) << std::endl;
+        // std::cout << "ax +b  >> 12=  " << ((((inA[0] + inB[0]) * a_bob[0] + b_bob[0]) & mask_bwC) >> 12) << std::endl;
+        // std::cout << "The result should be calculate_GELU = " << calculate_GELU(inA[0] + inB[0]) << std::endl;
+
+        for (int i = 0; i < dim; i++)
+        {
+            std::cout << "total y = y0 + y1 =  " << ((y[i] + recv_y[i]) & mask_bwC) << ", real num: " << (double)decode_ring((y[i] + recv_y[i]) & mask_bwC, 37) / 4096 << std::endl;
+
+            // std::cout << "ax +b =  " << (((inA[i] + inB[i]) * a_bob[i] + b_bob[i]) & mask_bwC) << std::endl;
+            // std::cout << "ax +b  >> 12=  " << ((((inA[i] + inB[i]) * a_bob[i] + b_bob[i]) & mask_bwC) >> 12) << std::endl;
+            std::cout << "The result " << inA[i] + inB[i] << " should be calculate_GELU = " << calculate_GELU(inA[i] + inB[i]) << std::endl;
+        }
     }
 
     ///////////输出时间和通信
