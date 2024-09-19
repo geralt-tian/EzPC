@@ -34,9 +34,11 @@ SOFTWARE.
 #include "BuildingBlocks/truncation.h"
 #include "BuildingBlocks/aux-protocols.h"
 #include <chrono>
+#include <matplotlibcpp.h>
 using namespace sci;
 using namespace std;
-
+namespace plt = matplotlibcpp;
+using namespace plt;
 int party, port = 32000;
 string address = "127.0.0.1";
 IOPack *iopack;
@@ -181,15 +183,15 @@ int main(int argc, char **argv)
     prod = new LinearOT(party, iopack, otpack);
 
     PRG128 prg; //(fix_key);
-    int dim = 100;
+    int dim = 1000;
     uint64_t *inA = new uint64_t[dim]; // 1*100
     uint64_t *inB = new uint64_t[dim]; // 100*35
 
     uint64_t *outax = new uint64_t[dim];
     for (int i = 0; i < dim; i++)
     {
-        inA[i] = 1000 + i * 100;
-        inB[i] = 1000 + i * 100;
+        inA[i] = 000 + i * 10;
+        inB[i] = 000 + i * 10;
     }
     std::cout << "input inA[" << 0 << "] = " << inA[0] << std::endl;
     std::cout << "input inB[" << 0 << "] = " << inB[0] << std::endl;
@@ -727,7 +729,8 @@ int main(int argc, char **argv)
         // std::cout << "ax +b =  " << (((inA[0] + inB[0]) * a_bob[0] + b_bob[0]) & mask_bwC) << std::endl;
         // std::cout << "ax +b  >> 12=  " << ((((inA[0] + inB[0]) * a_bob[0] + b_bob[0]) & mask_bwC) >> 12) << std::endl;
         // std::cout << "The result should be calculate_GELU = " << calculate_GELU(inA[0] + inB[0]) << std::endl;
-
+        std::vector<double> x_values, y_values;
+        std::vector<double> x_real, y_real;
         for (int i = 0; i < dim; i++)
         {
             std::cout << "total y = y0 + y1 =  " << ((y[i] + recv_y[i]) & mask_bwC) << ", real num: " << (double)decode_ring((y[i] + recv_y[i]) & mask_bwC, 37) / 4096 << std::endl;
@@ -735,7 +738,24 @@ int main(int argc, char **argv)
             // std::cout << "ax +b =  " << (((inA[i] + inB[i]) * a_bob[i] + b_bob[i]) & mask_bwC) << std::endl;
             // std::cout << "ax +b  >> 12=  " << ((((inA[i] + inB[i]) * a_bob[i] + b_bob[i]) & mask_bwC) >> 12) << std::endl;
             std::cout << "The result " << inA[i] + inB[i] << " should be calculate_GELU = " << calculate_GELU(inA[i] + inB[i]) << std::endl;
+            x_values.push_back((inA[i] + inB[i])/ 4096.0);
+            y_values.push_back((double)decode_ring((y[i] + recv_y[i]) & mask_bwC, 37) / 4096 );
+            x_real.push_back((inA[i] + inB[i])/ 4096.0);
+            y_real.push_back(calculate_GELU(inA[i] + inB[i]));
         }
+
+        // 绘制曲线
+        plt::scatter(x_values, y_values,1 , {{"color", "red"}});
+        plt::scatter(x_real, y_real,1, {{"color", "blue"}});
+
+        // 设置标题和标签
+        plt::title("Simple Line Plot");
+        plt::xlabel("x-axis");
+        plt::ylabel("y-axis");
+
+        // 显示图形
+        plt::show();
+        plt::save("/home/zhaoqian/EzPC/test.png", 300);
     }
 
     ///////////输出时间和通信
