@@ -13,7 +13,7 @@ precision = 12
 
 
 def gx(x):
-    return x/2 * erf(x/1.141)
+    return x/2 * erf(x/math.sqrt(2))
 
 def erf_derivative(x):  # erf的导数
     return 2*np.exp(-x**2) / np.sqrt(np.pi)
@@ -25,13 +25,21 @@ def gx_intercept(x):    # 计算截距
     return gx(x) - gx_derivative(x) * x
 
 
+# tanh_part = std::tanh(0.7978845608 * a + 0.7978845608 * 0.044715 * std::pow(a, 3));
+#     return 0.5 * a * (1 + tanh_part);
+
 def draw_test():
     def draw_gx():
         # x = np.linspace(-5, 0, 1000)
         x = np.linspace(-5, 5, 1000)
-        # y = x/2 +  x/2 * erf(x/1.141)
+        y = x/2 +  x/2 * erf(x/1.414)
+        print(1.199951171875/2 +  1.199951171875/2 * erf(1.199951171875/1.414))
+        tanh_part = np.tanh(0.7978845608 * x + 0.7978845608 * 0.044715 * x**3)
+
+        yy =  0.5 * x * (1 + tanh_part)
+
         # y = x/2 * erf(x/1.141)
-        y =  erf(x/1.141)
+        # y =  erf(x/1.141)
 
         # y = (math.e**(2*x) - math.e**(-2*x) - 4*x) / (math.e**x + math.e**(-x))**2
         
@@ -45,9 +53,13 @@ def draw_test():
         # y = math.e**x
 
         # 绘制 gx 图像
-        plt.plot(x, y)
+        plt.plot(x, y,  color='red')
+        plt.plot(x, yy, color='blue')
         plt.grid(True)
-        # plt.show()
+
+        # 保存图片为高分辨率 (300 dpi)
+        plt.savefig("output_image.png", dpi=300)
+        plt.show()
 
     def draw_a_d():
         # 确保所有代码块正确缩进
@@ -56,19 +68,19 @@ def draw_test():
         intercept_values = []
         k_d_pairs = []  # 用于存储{k, d}对
         # 计算斜率和截距
-        for xx in range(-128,128):
+        for xx in range(0,128):
             x = xx / 32
             k = gx_derivative(x)  # 斜率
             d = gx_intercept(x)   # 截距
 
-            k_d_pairs.append(f"{{{int((k)*(2**12))%(2**14)}, {int((d)*(2**12))%(2**14)}}}")
+            k_d_pairs.append(f"{{{int((k)*(2**4))%(2**6)}, {int((d)*(2**4))%(2**6)}}}")
             # print("x: ", x)
             # print("k: ", k)
             # print("d: ", d)
             
             x_values.append(x)
-            slope_values.append(k)
-            intercept_values.append(d)
+            slope_values.append(int((k)*(2**4))%(2**6))
+            intercept_values.append(int((d)*(2**4))%(2**6))
         print("{" + ", ".join(k_d_pairs) + "}")
         # 绘制散点图：红色表示斜率，蓝色表示截距
         plt.scatter(x_values, slope_values, s=1, color='red', label='Slope')
@@ -85,14 +97,15 @@ def draw_test():
         # 显示网格
         plt.grid(True)
 
-        # 保存图片为高分辨率 (300 dpi)
-        plt.savefig("output_image.png", dpi=300)
+        # # 保存图片为高分辨率 (300 dpi)
+        # plt.savefig("output_image.png", dpi=300)
 
-        # 显示图像
-        plt.show()
+        # # 显示图像
+        # plt.show()
 
     # 调用绘制函数
-    draw_a_d()
+    draw_gx()
+    # draw_a_d()
     
 draw_test()
 
