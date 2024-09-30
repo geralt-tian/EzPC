@@ -142,14 +142,16 @@ def Error_all(C, la, ld, Start, End, N):    # 分成N份
         e_min_i, ai, di = Error_slice(C, la, ld, start, end)
 
         print(start, end)
-        print("ai: ", (int)(ai*(2**5)))
-        print("di: ", (int)(di*(2**12)))
+        # print("ai: ", (int)(ai*(2**5)))
+        # print("di: ", (int)(di*(2**8)))
+        print("ai: ", (ai))
+        print("di: ", (di))
         print("e_min_i: ", e_min_i)
         print()
 
         E_min.append(e_min_i)
         A.append((int)(ai*(2**(la))))
-        D.append((int)(di*(2**(ld))) % 2**(ld + 2))
+        D.append((int)(di*(2**(ld))) % 2**(ld + 1))
 
         # draw
         x = np.linspace(start, end, 100)
@@ -172,7 +174,7 @@ def Error_all(C, la, ld, Start, End, N):    # 分成N份
 
 C = 0
 la = 5
-ld = 12
+ld = 9
 Start, End = 0, 4
 N = 128
 Error_all(C, la, ld, Start, End, N)

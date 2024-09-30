@@ -1,35 +1,45 @@
-from Crypto.Cipher import DES
-from Crypto.Util.Padding import pad, unpad
-from Crypto.Random import get_random_bytes
+import pandas as pd
+import matplotlib.pyplot as plt
 
-# DES 的块大小是 8 字节（64 比特）
-BLOCK_SIZE = 8
+# 读取CSV文件
+data = pd.read_csv('scatter_data.csv')
 
-# 密钥必须是 8 字节
-key = b'8bytekey'
+# 分离两组数据
+decoded_ring = data[data['dataset'] == 'Decoded Ring']
+gelu = data[data['dataset'] == 'GELU']
 
-# 生成随机的初始化向量 (IV)
-iv = get_random_bytes(BLOCK_SIZE)
+# 创建绘图
+plt.figure(figsize=(10, 6))
 
-# 创建 DES 加密器，使用 CBC 模式
-cipher = DES.new(key, DES.MODE_CBC, iv)
+# 绘制第一组散点数据（Decoded Ring）
+plt.scatter(decoded_ring['x'], decoded_ring['y'], 
+            color='red', 
+            marker=',', 
+            s=1,       # 点的大小
+            label='Decoded Ring',
+            alpha=0.7)  # 透明度
 
-# 明文长度超过 64 比特
-plaintext = b"11111111111111111111111111111"
+# 绘制第二组散点数据（GELU）
+plt.scatter(gelu['x'], gelu['y'], 
+            color='blue', 
+            marker=',', 
+            s=1,       # 点的大小
+            label='GELU',
+            alpha=0.7)  # 透明度
 
-# 明文需要先进行填充
-padded_text = pad(plaintext, BLOCK_SIZE)
+# 设置标题和轴标签
+plt.title('Simple Scatter Plot')
+plt.xlabel('x-axis')
+plt.ylabel('y-axis')
 
-# 加密
-ciphertext = cipher.encrypt(padded_text)
-print(f"Ciphertext (hex): {ciphertext.hex()}")
+# 添加图例
+plt.legend()
 
-# 解密时也需要相同的 IV
-decipher = DES.new(key, DES.MODE_CBC, iv)
+# 添加网格（可选）
+# plt.grid(True)
 
-# 解密
-decrypted_padded_text = decipher.decrypt(ciphertext)
+# 保存为SVG矢量图
+plt.savefig('/home/zhaoqian/EzPC/test.svg', format='svg')
 
-# 解密后去掉填充
-decrypted_text = unpad(decrypted_padded_text, BLOCK_SIZE)
-print(f"Decrypted text: {decrypted_text.decode('utf-8')}")
+# 显示图形
+plt.show()

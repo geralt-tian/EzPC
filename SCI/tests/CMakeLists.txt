@@ -39,6 +39,7 @@ add_test_OT(multest)
 add_test_OT(floattest)
 add_test_OT(ABSMUX)
 add_test_OT(papertest)
+add_test_OT(l21_la6)
 
 add_test_HE(relu)
 add_test_HE(maxpool)
