@@ -71,6 +71,10 @@ uint64_t lb = 10;
 // uint64_t f = 12;
 uint64_t la = 6; // la=5 f=5,la=14,f=12
 uint64_t f = 12;
+uint64_t Tk = f-1;
+uint64_t alpha = 14336;
+    
+uint64_t mask_l_Tk = (bwL == 64 ? -1 : ((1ULL << (bwL - Tk)) - 1));
 uint64_t mask_lah1 = ((la + h + 1) == 64 ? -1 : ((1ULL << (la + h + 1)) - 1));
 uint64_t mask_lla = ((la + bwL) == 64 ? -1 : ((1ULL << (la + bwL)) - 1));
 uint64_t s = 7; // a=5 s=10,a=14,s=7
@@ -615,14 +619,13 @@ int main(int argc, char **argv)
     //     prod->aux->MSB(EMUX_output_x, DreluMSB, dim, bwL-10);
     // }
 
-    int Tk = 10;
-    uint64_t mask_l_Tk = (bwL == 64 ? -1 : ((1ULL << (bwL - Tk)) - 1));
+
 
     if (party == ALICE)
     {
         for (int i = 0; i < dim; i++)
         {
-            EMUX_output_x[i] = (EMUX_output_x[i] - 16384) & mask_bwL;
+            EMUX_output_x[i] = (EMUX_output_x[i] - alpha) & mask_bwL;
             std::cout << "EMUX_output_x[i] A =  " << EMUX_output_x[i] << std::endl;
 
             EMUX_output_x[i] = (EMUX_output_x[i] >> Tk) & mask_l_Tk;
@@ -840,15 +843,15 @@ int main(int argc, char **argv)
         }
 
         uint64_t sum = 0.0;
-        for (size_t i = 0; i < 4096; ++i)
+        for (size_t i = 0; i < dim; ++i)
         {
             sum += (ULPs[i]);
-            std::cout << "ULPs[" << i << "] = " << ULPs[i] << std::endl;
+            // std::cout << "ULPs[" << i << "] = " << ULPs[i] << std::endl;
         }
-        uint64_t average = sum / static_cast<uint64_t>(4096);
+        uint64_t average = sum / static_cast<uint64_t>(dim);
         std::cout << "sum: " << sum << std::endl;
-        std::cout << "static_cast<uint64_t>(dim): " << static_cast<uint64_t>(4096) << std::endl;
-        uint64_t max_val = *std::max_element(ULPs, ULPs + 4096);
+        std::cout << "static_cast<uint64_t>(dim): " << static_cast<uint64_t>(dim) << std::endl;
+        uint64_t max_val = *std::max_element(ULPs, ULPs + dim);
         std::cout << "average: " << average << std::endl;
         std::cout << "max_val: " << max_val << std::endl;
         // 绘制曲线
