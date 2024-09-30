@@ -142,8 +142,8 @@ def Error_all(C, la, ld, Start, End, N):    # 分成N份
         e_min_i, ai, di = Error_slice(C, la, ld, start, end)
 
         print(start, end)
-        # print("ai: ", (int)(ai*(2**5)))
-        # print("di: ", (int)(di*(2**8)))
+        print("ai: ", (int)(ai*(2**la)))
+        print("di: ", (int)(di*(2**ld)))
         print("ai: ", (ai))
         print("di: ", (di))
         print("e_min_i: ", e_min_i)
@@ -173,8 +173,8 @@ def Error_all(C, la, ld, Start, End, N):    # 分成N份
 
 
 C = 0
-la = 5
-ld = 9
+la = 12
+ld = 12
 Start, End = 0, 4
 N = 128
 Error_all(C, la, ld, Start, End, N)
