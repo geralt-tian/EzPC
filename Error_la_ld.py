@@ -57,6 +57,18 @@ def error_a_d(C, a, d, start, end): # 计算误差，这里用均方误差
     y_curve = gx(x)
     return np.mean((y_curve - y_linear) ** 2)
 
+def error_a_d_aveULP(C, a, d, start, end): # 计算误差，这里用aveULP
+    x = np.linspace(start, end, 100)
+    y_linear = a*x + d
+    y_curve = gx(x)
+    return np.mean(np.abs(y_curve - y_linear))
+
+def error_a_d_maxULP(C, a, d, start, end): # 计算误差，这里用maxULP
+    x = np.linspace(start, end, 100)
+    y_linear = a*x + d
+    y_curve = gx(x)
+    return np.max(np.abs(y_curve - y_linear))
+
 
 
 def Error_slice(C, la, ld, start, end):
@@ -98,7 +110,7 @@ def Error_slice(C, la, ld, start, end):
     e = np.array(e, dtype=float)
     for i in range(len(A_try)):
         for j in range(len(D_try)):
-            e[i][j] = error_a_d(C, A_try[i], D_try[j], start, end)
+            e[i][j] = error_a_d_maxULP(C, A_try[i], D_try[j], start, end)
 
     e_min =e.min()
     Ia,Id = unravel_index(e.argmin(), e.shape)

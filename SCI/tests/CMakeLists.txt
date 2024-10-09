@@ -40,6 +40,7 @@ add_test_OT(floattest)
 add_test_OT(ABSMUX)
 add_test_OT(papertest)
 add_test_OT(l21_la6)
+add_test_OT(clear_l21_la6)
 add_test_OT(l21_la12)
 
 add_test_HE(relu)
