@@ -185,10 +185,10 @@ def Error_all(C, la, ld, Start, End, N):    # 分成N份
 
 
 C = 0
-la = 12
-ld = 12
+la = 5
+ld = 9
 Start, End = 0, 4
-N = 128
+N = 16
 Error_all(C, la, ld, Start, End, N)
 
 

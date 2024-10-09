@@ -50,7 +50,8 @@ uint64_t alpha = 3.5 * pow(2, f);
 uint64_t mask_l_Tk = (bwL == 64 ? -1 : ((1ULL << (bwL - Tk)) - 1));
 uint64_t mask_lah1 = ((la + h + 1) == 64 ? -1 : ((1ULL << (la + h + 1)) - 1));
 uint64_t mask_lla = ((la + bwL) == 64 ? -1 : ((1ULL << (la + bwL)) - 1));
-uint64_t s = 7;
+uint64_t s = 6;
+// s = 5(低精度)，s = 6(高)， s = 7 与 s = 6 误差相差不大
 Truncation *trunc_oracle;
 AuxProtocols *aux;
 
@@ -115,7 +116,8 @@ void assign_lower_h_bits(int32_t dim, uint64_t *inA, uint64_t *inB, uint64_t *in
 int main(int argc, char **argv)
 {
     ArgMapping amap;
-    int dim = 5120;
+    int dim = 1;
+    uint8_t acc = 1;
     uint64_t init_input = 0;
     uint64_t step_size = 2;
     amap.arg("r", party, "Role of party: ALICE = 1; BOB = 2");
@@ -126,6 +128,7 @@ int main(int argc, char **argv)
     amap.arg("dim", dim, "Dimension parameter for accumulation");
     amap.arg("init_input", init_input, "init_input for accumulation");
     amap.arg("step_size", step_size, "step_size for accumulation");
+    amap.arg("acc", acc, "acc=0 low, acc=1 general (default), acc =2 high");
 
     amap.parse(argc, argv);
     std::cout << "Parsed dimension (dim) = " << dim << std::endl;
@@ -195,12 +198,15 @@ int main(int argc, char **argv)
 
     std::cout << "\n=========STEP6 extract the lower h bits===========" << std::endl;
     assign_lower_h_bits(dim, inA, inB, inA_h, inB_h, h);
+
+    //////////////////////////////////////////////////////// general版本：直接截取，不用截断协议；高精度版本：使用截断协议
     // step6 check
     std::cout << "\n=========STEP5 get mid s bit for LUT===========" << std::endl;
     uint64_t comm_start_tr = iopack->get_comm();
     trunc_oracle = new Truncation(party, iopack, otpack);
     uint64_t *outtrunc = new uint64_t[dim];
-    if (party == sci::ALICE)
+    if(acc==2){
+            if (party == sci::ALICE)
     {
         trunc_oracle->truncate_and_reduce(dim, inA_h, outtrunc, h - s, h); // shift=h-s,hypothesis s=7  truncate就是为了分组，截断后7位，为了前s位可以映射到对应的table
     }
@@ -208,6 +214,20 @@ int main(int argc, char **argv)
     {
         trunc_oracle->truncate_and_reduce(dim, inB_h, outtrunc, h - s, h);
     }
+    }
+    else{
+        if(party==ALICE){
+            for(int i=0;i<dim;i++){
+                outtrunc[i] = (inA_h[i] >> (h - s)) ;
+            }
+        }
+        else{
+            for(int i=0;i<dim;i++){
+                outtrunc[i] = (inA_h[i] >> (h - s)) ;
+            }
+        }
+    }
+
 
     std::cout << std::dec << "outtrunc = " << outtrunc[0] << std::endl;
     uint64_t comm_end_tr = iopack->get_comm();
@@ -228,9 +248,14 @@ int main(int argc, char **argv)
     //  std::vector<std::vector<uint64_t>> data = {{0, 0}, {12, 28}, {23, 15}, {2, 25}, {12, 26}, {21, 19}, {27, 4}, {31, 12}, {0, 13}, {30, 6}, {25, 23}, {16, 2}, {3, 6}, {18, 4}, {28, 27}, {2, 14}, {2, 27}, {29, 4}, {19, 8}, {3, 9}, {13, 7}, {17, 2}, {15, 27}, {7, 18}, {25, 8}, {5, 29}, {10, 17}, {10, 6}, {3, 27}, {22, 17}, {2, 9}, {9, 2}, {10, 29}, {5, 27}, {26, 27}, {10, 30}, {21, 5}, {26, 14}, {26, 28}, {22, 13}, {12, 2}, {31, 27}, {13, 24}, {23, 26}, {29, 31}, {31, 9}, {31, 24}, {27, 10}, {20, 1}, {10, 27}, {30, 26}, {16, 28}, {31, 3}, {13, 13}, {25, 26}, {3, 11}, {12, 30}, {20, 21}, {27, 15}, {1, 11}, {7, 9}, {12, 10}, {17, 12}, {21, 16}, {26, 22}, {30, 29}, {3, 5}, {7, 15}, {12, 25}, {18, 3}, {23, 14}, {30, 26}, {4, 5}, {12, 17}, {20, 28}, {29, 7}, {6, 17}, {16, 27}, {27, 4}, {7, 13}, {20, 20}, {1, 27}, {15, 1}, {30, 6}, {14, 9}, {30, 12}, {15, 13}, {1, 14}, {20, 13}, {7, 10}, {27, 7}, {16, 2}, {6, 29}, {28, 22}, {18, 14}, {10, 4}, {1, 26}, {26, 14}, {19, 1}, {12, 20}, {6, 5}, {0, 21}, {26, 4}, {21, 19}, {17, 0}, {13, 12}, {9, 24}, {5, 3}, {2, 13}, {30, 23}, {28, 0}, {25, 8}, {23, 15}, {20, 23}, {18, 29}, {17, 3}, {15, 9}, {13, 14}, {12, 18}, {11, 23}, {10, 27}, {9, 30}, {8, 1}, {7, 4}, {6, 7}, {5, 10}, {5, 12}, {4, 14}};
     // la=6  lb=13
     //  std::vector<std::vector<uint64_t>> data = {{0,0}, {1,16382}, {2,16374}, {3,16362}, {4,16344}, {4,16344}, {5,16321}, {6,16293}, {7,16260}, {7,16260}, {8,16221}, {9,16177}, {9,16177}, {10,16127}, {11,16070}, {11,16071}, {12,16008}, {13,15939}, {13,15939}, {14,15863}, {14,15864}, {15,15780}, {15,15780}, {16,15688}, {16,15688}, {17,15588}, {17,15587}, {17,15587}, {18,15475}, {18,15475}, {18,15475}, {19,15351}, {19,15350}, {19,15349}, {19,15350}, {19,15351}, {20,15207}, {20,15205}, {20,15204}, {20,15203}, {20,15203}, {20,15203}, {20,15203}, {20,15204}, {20,15204}, {20,15204}, {20,15205}, {20,15205}, {20,15206}, {20,15206}, {20,15206}, {20,15206}, {20,15205}, {20,15204}, {20,15203}, {20,15202}, {20,15200}, {19,15428}, {19,15429}, {19,15430}, {19,15431}, {19,15431}, {19,15431}, {19,15430}, {19,15429}, {19,15427}, {18,15692}, {18,15693}, {18,15694}, {18,15695}, {18,15696}, {18,15695}, {18,15695}, {18,15694}, {18,15693}, {18,15692}, {17,15996}, {17,15997}, {17,15999}, {17,16000}, {17,16001}, {17,16001}, {17,16002}, {17,16002}, {17,16001}, {17,16001}, {17,16000}, {17,15999}, {17,15998}, {17,15996}, {17,15995}, {17,15993}, {17,15991}, {16,16363}, {16,16365}, {16,16367}, {16,16368}, {16,16370}, {16,16371}, {16,16372}, {16,16373}, {16,16374}, {16,16375}, {16,16376}, {16,16377}, {16,16377}, {16,16378}, {16,16379}, {16,16379}, {16,16380}, {16,16380}, {16,16380}, {16,16381}, {16,16381}, {16,16381}, {16,16382}, {16,16382}, {16,16382}, {16,16382}, {16,16383}, {16,16383}, {16,16383}, {16,16383}, {16,16383}, {16,16383}, {16,16383}, {16,16383}, {16,16383}};
-    // la=6 lb=10
-    std::vector<std::vector<uint64_t>> data = {{0, 0}, {1, 0}, {2, 1023}, {3, 1021}, {4, 1019}, {4, 1019}, {5, 1016}, {6, 1013}, {7, 1009}, {7, 1009}, {8, 1004}, {9, 998}, {9, 998}, {10, 992}, {11, 985}, {11, 985}, {12, 977}, {13, 968}, {13, 968}, {14, 959}, {14, 959}, {15, 948}, {15, 949}, {16, 937}, {16, 937}, {17, 924}, {17, 924}, {17, 924}, {18, 910}, {18, 910}, {18, 910}, {19, 895}, {19, 895}, {19, 895}, {19, 895}, {19, 895}, {20, 877}, {20, 877}, {20, 876}, {20, 876}, {20, 876}, {20, 876}, {20, 876}, {20, 876}, {20, 876}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 876}, {20, 876}, {20, 876}, {19, 904}, {19, 905}, {19, 905}, {19, 905}, {19, 905}, {19, 905}, {19, 905}, {19, 905}, {19, 904}, {18, 937}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 937}, {17, 975}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 975}, {17, 975}, {17, 975}, {16, 1021}, {16, 1022}, {16, 1022}, {16, 1022}, {16, 1022}, {16, 1022}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}};
-
+    // la=6 lb=10 size=128
+    // std::vector<std::vector<uint64_t>> data = {{0, 0}, {1, 0}, {2, 1023}, {3, 1021}, {4, 1019}, {4, 1019}, {5, 1016}, {6, 1013}, {7, 1009}, {7, 1009}, {8, 1004}, {9, 998}, {9, 998}, {10, 992}, {11, 985}, {11, 985}, {12, 977}, {13, 968}, {13, 968}, {14, 959}, {14, 959}, {15, 948}, {15, 949}, {16, 937}, {16, 937}, {17, 924}, {17, 924}, {17, 924}, {18, 910}, {18, 910}, {18, 910}, {19, 895}, {19, 895}, {19, 895}, {19, 895}, {19, 895}, {20, 877}, {20, 877}, {20, 876}, {20, 876}, {20, 876}, {20, 876}, {20, 876}, {20, 876}, {20, 876}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 876}, {20, 876}, {20, 876}, {19, 904}, {19, 905}, {19, 905}, {19, 905}, {19, 905}, {19, 905}, {19, 905}, {19, 905}, {19, 904}, {18, 937}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 937}, {17, 975}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 975}, {17, 975}, {17, 975}, {16, 1021}, {16, 1022}, {16, 1022}, {16, 1022}, {16, 1022}, {16, 1022}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}};
+    // la=6 lb=10 size=64
+    std::vector<std::vector<uint64_t>> data = {{1, 0}, {2, 1023}, {4, 1019}, {6, 1013}, {7, 1009}, {8, 1004}, {10, 992}, {11, 985}, {12, 977}, {14, 959}, {15, 949}, {16, 937}, {16, 937}, {17, 924}, {18, 910}, {18, 911}, {19, 895}, {19, 895}, {20, 877}, {20, 876}, {20, 876}, {20, 876}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 876}, {19, 904}, {19, 905}, {19, 905}, {19, 905}, {19, 905}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 975}, {16, 1021}, {16, 1022}, {16, 1022}, {16, 1022}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}};
+    // la=6 lb=10 size=32
+    // std::vector<std::vector<uint64_t>> data = {{2,1023}, {5,1017}, {8,1004}, {10,992}, {13,969}, {15,949}, {17,925}, {18,911}, {19,895}, {20,877}, {20,876}, {20,877}, {20,877}, {20,876}, {19,904}, {19,905}, {19,904}, {18,938}, {18,938}, {17,976}, {17,976}, {17,976}, {17,975}, {16,1021}, {16,1022}, {16,1023}, {16,1023}, {16,1023}, {16,0}, {16,0}, {16,0}, {16,0}};
+    // la=6 lb=10 size=16
+    // std::vector<std::vector<uint64_t>> data = {{3,1023}, {9,1000}, {14,960}, {18,912}, {19,896}, {20,877}, {20,876}, {19,904}, {18,937}, {18,937}, {17,976}, {17,975}, {16,1022}, {16,1023}, {16,0}, {16,0}};
     // la=6 lb=10 avgULP
     //  std::vector<std::vector<uint64_t>> data = {{0,0}, {1,0}, {2,1023}, {3,1021}, {4,1019}, {4,1019}, {5,1016}, {6,1013}, {7,1009}, {7,1009}, {8,1004}, {9,998}, {9,998}, {10,992}, {11,985}, {11,985}, {12,977}, {13,968}, {13,968}, {14,959}, {14,959}, {15,948}, {15,949}, {16,937}, {16,937}, {17,924}, {17,924}, {17,924}, {18,910}, {18,910}, {18,910}, {19,895}, {19,895}, {19,895}, {19,895}, {19,895}, {20,877}, {20,877}, {20,876}, {20,876}, {20,876}, {20,876}, {20,876}, {20,876}, {20,876}, {20,877}, {20,877}, {20,877}, {20,877}, {20,877}, {20,877}, {20,877}, {20,877}, {20,877}, {20,876}, {20,876}, {20,876}, {19,904}, {19,905}, {19,905}, {19,905}, {19,905}, {19,905}, {19,905}, {19,905}, {19,904}, {18,937}, {18,938}, {18,938}, {18,938}, {18,938}, {18,938}, {18,938}, {18,938}, {18,938}, {18,937}, {17,975}, {17,976}, {17,976}, {17,976}, {17,976}, {17,976}, {17,976}, {17,976}, {17,976}, {17,976}, {17,976}, {17,976}, {17,976}, {17,976}, {17,975}, {17,975}, {17,975}, {16,1021}, {16,1022}, {16,1022}, {16,1022}, {16,1022}, {16,1022}, {16,1023}, {16,1023}, {16,1023}, {16,1023}, {16,1023}, {16,1023}, {16,1023}, {16,1023}, {16,1023}, {16,1023}, {16,1023}, {16,0}, {16,0}, {16,0}, {16,0}, {16,0}, {16,0}, {16,0}, {16,0}, {16,0}, {16,0}, {16,0}, {16,0}, {16,0}, {16,0}, {16,0}, {16,0}, {16,0}, {16,0}};
 
@@ -330,36 +355,10 @@ int main(int argc, char **argv)
 
     uint64_t comm_end_lut = iopack->get_comm();
     cout << "LUT Bytes Sent: " << (comm_end_lut - comm_start_lut) << "bytes" << endl;
-    //////////////////////step8
-    // std::cout << "\n=========STEP7 EMUX a  ===========" << std::endl;//这一步不需要，a都是正数
-    // uint64_t *EMUX_output_a = new uint64_t[dim];
-    // std::cout << "inA[" << 0 << "] = " << inA[0] << std::endl;
-    // std::cout << "inB[" << 0 << "] = " << inB[0] << std::endl;
-    // if (party == ALICE)
-    // {
-    //     aux->multiplexerabs(Drelu, a_alice, EMUX_output_a, dim, la, la);
-    // }
-    // else
-    // {
-    //     aux->multiplexerabs(Drelu, a_bob, EMUX_output_a, dim, la, la);
-    // }
-    // for (int i = 0; i < dim; i++)
-    // {
-    //     std::cout << "EMUX_output_a[" << i << "] = " << EMUX_output_a[i] << std::endl;
-    // }
-    // std::cout << "EMUX_output_a[" << 0 << "] = " << EMUX_output_a[0] << std::endl; // 目前的输出是16383+2**37
+
 
     ext = new XTProtocol(party, iopack, otpack);
-    // uint64_t *zext_h = new uint64_t[dim];
-    // if (party == ALICE)
-    // {
-    //     ext->z_extend(dim, inA_h, zext_h, h, h + 1, nullptr);
-    // }
-    // else
-    // {
-    //     ext->z_extend(dim, inB_h, zext_h, h, h + 1, nullptr);
-    // }
-    // std::cout << "zext_h[" << 0 << "] = " << zext_h[0] << std::endl;
+
 
     std::cout << "\n=========STEP7 multiplication to get a|x| l+la ===========" << std::endl;
     uint64_t comm_start_mult = iopack->get_comm();
@@ -371,18 +370,13 @@ int main(int argc, char **argv)
     {
         std::cout << "inA_h[" << 0 << "] = " << inA_h[0] << std::endl;
         std::cout << "a_alice[" << 0 << "] = " << a_alice[0] << std::endl;
-
-        prod->hadamard_product(dim, a_alice, EMUX_output_x, outax, la, bwL, la + bwL,
-                               true, true, mode,
-                               0, 0);
+        prod->hadamard_product(dim, a_alice, EMUX_output_x, outax, la, bwL, la + bwL, true, true, mode, 0, 0);
     }
     else
     {
         std::cout << "inB_h[" << 0 << "] = " << inB_h[0] << std::endl;
         std::cout << "a_bob[" << 0 << "] = " << a_bob[0] << std::endl;
-        prod->hadamard_product(dim, a_bob, EMUX_output_x, outax, la, bwL, la + bwL,
-                               true, true, mode,
-                               0, 0);
+        prod->hadamard_product(dim, a_bob, EMUX_output_x, outax, la, bwL, la + bwL, true, true, mode, 0, 0);
     }
     /////////////////////////
     if (party == ALICE)
@@ -402,28 +396,34 @@ int main(int argc, char **argv)
         }
         // std::cout << "total outax =  " << ((outax[0] + recv_outax[0]) & mask_lah1) << std::endl;
     }
-    // std::cout << "mask_lah_f = " << mask_lah_f << std::endl;
-    /////////////////////////新增截断
-    // for (int i = 0; i < dim; i++)//改为online
-    // {
-    //     // outax[i] = outax[i] & mask_bwL;
-    //     // std::cout << "trunc outax[" << i << "] = " << outax[i] << std::endl;
-    //     outax[i] = (outax[i] >> (la - 1)) & mask_bwL; //
-    //     // std::cout << "trunc outax mask_16[" << i << "] = " << outax[i] << std::endl;
+
     // }
+
     std::cout << "\n=========STEP8 ax truncate from l+la to l+1  ===========" << std::endl; // 跟协议对不上，这里直接得到了axl
+    //////////////////////////////////////////////////////// general版本：直接截取，不用截断协议；高精度版本：使用截断协议
     uint64_t *mid_ax = new uint64_t[dim];
-    if (party == ALICE)
+
+    if (acc == 2)
     {
-        trunc_oracle->truncate(dim, outax, mid_ax, la - 1, bwL, true, msbA);
+        if (party == ALICE)
+        {
+            trunc_oracle->truncate(dim, outax, mid_ax, la - 1, bwL, true, msbA);
+        }
+        else
+        {
+            trunc_oracle->truncate(dim, outax, mid_ax, la - 1, bwL, true, msbB);
+        }
+        for (int i = 0; i < dim; i++)
+        {
+            outax[i] = mid_ax[i];
+        }
     }
     else
     {
-        trunc_oracle->truncate(dim, outax, mid_ax, la - 1, bwL, true, msbB);
-    }
-    for (int i = 0; i < dim; i++)
-    {
-        outax[i] = mid_ax[i];
+        for (int i = 0; i < dim; i++)
+        {
+            outax[i] = (outax[i] >> (la - 1)) & mask_bwL; 
+        }
     }
 
     uint64_t comm_end_mult = iopack->get_comm();
@@ -465,6 +465,7 @@ int main(int argc, char **argv)
     //     iopack->io->recv_data(recv_ax_SExt, dim * sizeof(uint64_t));
     //     std::cout << "total ax_SExt =  " << ((ax_SExt[0] + recv_ax_SExt[0]) & mask_bwL) << std::endl;
     // }
+
     std::cout << "\n=========STEP11 d SExt with MSB from f+1 to l   ===========" << std::endl;
     uint64_t *b_SExt = new uint64_t[dim];
     if (party == ALICE)
@@ -490,6 +491,7 @@ int main(int argc, char **argv)
             std::cout << "total b_SExt[" << i << "] =  " << ((b_SExt[i] + recv_b_SExt[i]) & mask_bwL) << std::endl;
         }
     }
+
     std::cout << "\n=========STEP12 Caculate z=ax+b   ===========" << std::endl;
     uint64_t *z = new uint64_t[dim];
 
@@ -523,9 +525,7 @@ int main(int argc, char **argv)
         {
             EMUX_output_x[i] = (EMUX_output_x[i] - alpha) & mask_bwL;
             std::cout << "EMUX_output_x[i] A =  " << EMUX_output_x[i] << std::endl;
-
             EMUX_output_x[i] = (EMUX_output_x[i] >> Tk) & mask_l_Tk;
-
             std::cout << "EMUX_output_x[i] A trun =  " << EMUX_output_x[i] << std::endl;
         }
         prod->aux->MSB(EMUX_output_x, DreluMSB, dim, bwL - Tk);
@@ -558,12 +558,12 @@ int main(int argc, char **argv)
         }
     }
 
-
     std::cout << "\n=========STEP15 get x_half ===========" << std::endl;
 
     // online
     uint64_t *xhalf = new uint64_t[dim];
-    if (party == ALICE)
+    if(acc == 2){
+            if (party == ALICE)
     {
         trunc_oracle->truncate(dim, inA, xhalf, 1, bwL, true, msbA);
     }
@@ -571,6 +571,22 @@ int main(int argc, char **argv)
     {
         trunc_oracle->truncate(dim, inB, xhalf, 1, bwL, true, msbB);
     }
+    }
+    else{
+        if (party == ALICE){
+            for (int i = 0; i < dim; i++)
+            {
+                xhalf[i] = (inA[i] >> 1) & mask_bwL;
+            }
+        }
+        else{
+            for (int i = 0; i < dim; i++)
+            {
+                xhalf[i] = (inB[i] >> 1) & mask_bwL;
+            }
+        }
+    }
+
 
     std::cout << "xhalf[" << 0 << "] =" << xhalf[0] << std::endl;
 
@@ -579,7 +595,7 @@ int main(int argc, char **argv)
     uint64_t *delta = new uint64_t[dim];
     for (int i = 0; i < dim; i++)
     {
-        delta[i] = (  xhalf[i]-z[i]) & mask_bwL;
+        delta[i] = (xhalf[i] - z[i]) & mask_bwL;
     }
 
     std::cout << "\n=========STEP17 |g|=delta_ + x_half ===========" << std::endl;
@@ -597,12 +613,6 @@ int main(int argc, char **argv)
         std::cout << "MUX_output_g[" << i << "] =" << MUX_output_g[i] << std::endl;
     }
 
-    //     for (int i = 0; i < dim; i++)
-    // {
-    //     std::cout << "Drelu[" << i << "] = " << static_cast<int>(Drelu[i]) << std::endl;
-    //     std::cout << "Drelu_[" << i << "] = " << static_cast<int>(Drelu_[i]) << std::endl;
-    //     // std::cout << "Drelu_[" << i << "] = " << static_cast<int>(Drelu_[i]) << std::endl;
-    // }
     if (party == ALICE)
     {
         iopack->io->send_data(Drelu_, dim * sizeof(uint8_t));
@@ -613,7 +623,7 @@ int main(int argc, char **argv)
         iopack->io->recv_data(recv_Drelu_, dim * sizeof(uint8_t));
         for (int i = 0; i < dim; i++)
         {
-            std::cout << "total Drelu_ ["<<i<<"]=  " << ((Drelu_[i] ^ recv_Drelu_[i])) << std::endl;
+            std::cout << "total Drelu_ [" << i << "]=  " << ((Drelu_[i] ^ recv_Drelu_[i])) << std::endl;
         }
     }
     // std::cout << "\n=========STEP18 EMUX |g| to learn g ===========" << std::endl;
