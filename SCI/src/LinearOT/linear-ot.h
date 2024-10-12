@@ -73,6 +73,18 @@ public:
                         bool signed_B = true, MultMode mode = MultMode::None,
                         uint8_t *msbA = nullptr, uint8_t *msbB = nullptr);
 
+    void hadamard_product_MSB(int32_t dim,
+                        // input share vector
+                        uint64_t *inA, uint64_t *inB,
+                        // output share vector
+                        uint64_t *outC,
+                        // bitwidths
+                        int32_t bwA, int32_t bwB, int32_t bwC,
+                        bool signed_arithmetic = true,
+                        // take B as signed input?
+                        bool signed_B = true, MultMode mode = MultMode::None,
+                        uint8_t *msbA = nullptr, uint8_t *msbB = nullptr);
+
   // Matmul cross terms A0B1 + A1B0
   void matmul_cross_terms(
       // (dim1xdim2) X (dim2xdim3)
@@ -96,6 +108,21 @@ public:
 
   // Matrix Multiplication of two secret-shared matrices A and B
   void matrix_multiplication(
+      // (dim1xdim2) X (dim2xdim3)
+      int32_t dim1, int32_t dim2, int32_t dim3,
+      // input share matrix
+      uint64_t *inA, uint64_t *inB,
+      // output share matrix
+      uint64_t *outC,
+      // bitwidths
+      int32_t bwA, int32_t bwB, int32_t bwC, bool signed_arithmetic = true,
+      // take B as signed input?
+      bool signed_B = true, bool accumulate = true,
+      MultMode mode = MultMode::None, uint8_t *msbA = nullptr,
+      uint8_t *msbB = nullptr);
+
+
+        void matrix_multiplication_MSB(
       // (dim1xdim2) X (dim2xdim3)
       int32_t dim1, int32_t dim2, int32_t dim3,
       // input share matrix

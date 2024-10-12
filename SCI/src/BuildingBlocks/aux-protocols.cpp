@@ -311,6 +311,110 @@ void AuxProtocols::MSB(uint64_t *x, uint8_t *msb_x, int32_t size,
   delete[] msb_xb;
 }
 
+
+void AuxProtocols::MSBsec(uint64_t *x, uint8_t *msb_x, int32_t size,
+                       int32_t bw_x)
+{
+  assert(bw_x <= 64);
+  int32_t shift = bw_x - 1;
+  uint64_t shift_mask = (shift == 64 ? -1 : ((1ULL << shift) - 1));
+
+  uint64_t *tmp_x = new uint64_t[size];
+  uint8_t *msb_xb = new uint8_t[size];
+  for (int i = 0; i < size; i++)
+  {
+    tmp_x[i] = x[i] & shift_mask;
+    msb_xb[i] = (x[i] >> shift) & 1;
+    if (party == sci::BOB)
+      tmp_x[i] = (shift_mask - tmp_x[i]) & shift_mask;
+  }
+
+  mill->compare(msb_x, tmp_x, size, bw_x - 1, true,false,5); // computing greater_than
+
+  for (int i = 0; i < size; i++)
+  {
+    msb_x[i] = msb_x[i] ^ msb_xb[i];
+  }
+
+  delete[] tmp_x;
+  delete[] msb_xb;
+}
+
+
+void AuxProtocols::MSBnew(uint64_t *x, uint8_t *msb_x,uint8_t *reswrap, int32_t size,
+                       int32_t bw_x)
+{
+  assert(bw_x <= 64);
+  int32_t shift = bw_x - 1;
+  uint64_t shift_mask = (shift == 64 ? -1 : ((1ULL << shift) - 1));
+
+  uint64_t *tmp_x = new uint64_t[size];
+  uint8_t *msb_xb = new uint8_t[size];
+  for (int i = 0; i < size; i++)
+  {
+    tmp_x[i] = x[i] & shift_mask;
+    msb_xb[i] = (x[i] >> shift) & 1;
+    if (party == sci::BOB)
+      tmp_x[i] = (shift_mask - tmp_x[i]) & shift_mask;
+  }
+
+  mill->comparetest(msb_x,reswrap, tmp_x, size, bw_x - 1, true,false,7); // computing greater_than
+
+  for (int i = 0; i < size; i++)
+  {
+    msb_x[i] = msb_x[i] ^ msb_xb[i];
+  }
+
+  delete[] tmp_x;
+  delete[] msb_xb;
+}
+
+
+
+void AuxProtocols::knowMSB_to_Wrap(uint64_t *x, uint8_t *msb_x, uint8_t *wrap_x,
+                               int32_t size, int32_t bw_x)
+{
+  assert(bw_x <= 64);
+  uint8_t *t = new uint8_t [size];
+  uint8_t *t1 = new uint8_t [size];
+  uint8_t *z = new uint8_t [size];
+  if(party == sci::ALICE){
+  for(int i=0;i<size;i++){
+    t[i] = (x[i]>>(bw_x-1))&1;
+    t1[i] =0;
+  }
+  }
+  else{
+    for(int i=0;i<size;i++){
+    t1[i] = (x[i]>>(bw_x-1))&1;
+    t[i] =0;
+  }
+  }
+
+
+  AND(t, t1, z, size);
+  // for (int i = 0; i < size; i++)
+  // {
+  //   std:: cout << "t[" << i << "] = " << static_cast<int> (t[i] )<< std::endl;
+  //   std:: cout << "t1[" << i << "] = " << static_cast<int>(t1[i]) << std::endl;
+  //   std:: cout << "z[" << i << "] = " << static_cast<int>(z[i] )<< std::endl;
+  // }
+
+  if(party==ALICE){
+  for(int i=0;i<size;i++){
+    wrap_x[i] = (z[i]^t[i])&1;
+  }
+  }
+  else
+  {
+      for(int i=0;i<size;i++){
+    wrap_x[i] = (z[i]^t1[i]) &1;
+  }
+  }
+
+}
+
+
 void AuxProtocols::MSB_to_Wrap(uint64_t *x, uint8_t *msb_x, uint8_t *wrap_x,
                                int32_t size, int32_t bw_x)
 {

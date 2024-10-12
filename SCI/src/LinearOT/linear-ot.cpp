@@ -176,6 +176,16 @@ void LinearOT::hadamard_product(int32_t dim, uint64_t *inA, uint64_t *inB,
                         signed_arithmetic, signed_B, false, mode, msbA, msbB);
 }
 
+
+void LinearOT::hadamard_product_MSB(int32_t dim, uint64_t *inA, uint64_t *inB,
+                                uint64_t *outC, int32_t bwA, int32_t bwB,
+                                int32_t bwC, bool signed_arithmetic,
+                                bool signed_B, MultMode mode, uint8_t *msbA,
+                                uint8_t *msbB) {
+  matrix_multiplication_MSB(1, dim, 1, inA, inB, outC, bwA, bwB, bwC,
+                        signed_arithmetic, signed_B, false, mode, msbA, msbB);
+}
+
 // Cost with matrix of dimension dim1xdim2 and bitwidth m used as OT receiver
 double cross_term_cost(int dim1, int dim2, int dim3, int m, int n, int l) {
   return dim1*dim2*(m*128.0 + dim3*(m*(l-m) + (m*m + m)/2.0)); 
@@ -584,6 +594,7 @@ void LinearOT::matrix_multiplication(int32_t dim1, int32_t dim2, int32_t dim3,
   assert(bwC <= 64);
   assert((bwC <= (bwA + bwB)) && (bwC >= bwA) && (bwC >= bwB));
   int32_t extra_bits = (accumulate ? ceil(log2(dim2)) : 0);
+
   uint64_t *tmpA = new uint64_t[dim1 * dim2];
   uint64_t *tmpB = new uint64_t[dim2 * dim3];
 
@@ -676,8 +687,13 @@ void LinearOT::matrix_multiplication(int32_t dim1, int32_t dim2, int32_t dim3,
   /* print_vec(this, tmpA, bwA, dim1*dim2); */
   /* print_vec(this, tmpB, bwB, dim2*dim3); */
   uint64_t *cross_terms = new uint64_t[dim];
+  uint64_t matmul_cross_terms_comm_start = iopack->get_comm();
   matmul_cross_terms(dim1, dim2, dim3, tmpA, tmpB, cross_terms, bwA, bwB, bwC,
                      accumulate, mode);
+  uint64_t matmul_cross_terms_comm_end = iopack->get_comm();
+
+
+  std::cout << "matmul_cross_terms_communication: " << matmul_cross_terms_comm_end - matmul_cross_terms_comm_start << std::endl;
   /* print_vec(this, cross_terms, bwC, dim); */
 
   uint64_t *local_terms = new uint64_t[dim];
@@ -715,17 +731,26 @@ void LinearOT::matrix_multiplication(int32_t dim1, int32_t dim2, int32_t dim3,
             tmp_msbA[i] = (sender_A && (extra_bits > 0) ? 0 : msbA[i]);
           }
         }
+        uint64_t MSB_to_Wrap_comm_start = iopack->get_comm();
         aux->MSB_to_Wrap(tmpA, tmp_msbA, wA, dim1 * dim2, bwA);
+
+        uint64_t MSB_to_Wrap_comm_end = iopack->get_comm();
+
+        std::cout << "MSB2wrap_communication: " << MSB_to_Wrap_comm_end - MSB_to_Wrap_comm_start << std::endl;
         delete[] tmp_msbA;
       } else {
+
         aux->wrap_computation(tmpA, wA, dim1 * dim2, bwA);
       }
       uint64_t *wA64 = new uint64_t[dim1 * dim2];
       for (int i = 0; i < dim1 * dim2; i++) {
         wA64[i] = uint64_t(wA[i]);
       }
+      uint64_t matmul_multiplexer_comm_start = iopack->get_comm();
       matmul_multiplexer(dim1, dim2, dim3, wA64, tmpB, wA_B, 1, bwB, bwC - bwA,
                          accumulate, mode);
+      uint64_t matmul_multiplexer_comm_end = iopack->get_comm();
+      std::cout << "matmul_multiplexer_communication: " << matmul_multiplexer_comm_end - matmul_multiplexer_comm_start << std::endl;
       delete[] wA64;
     }
   }
@@ -746,6 +771,261 @@ void LinearOT::matrix_multiplication(int32_t dim1, int32_t dim2, int32_t dim3,
           }
         }
         aux->MSB_to_Wrap(tmpB, tmp_msbB, wB, dim2 * dim3, bwB);
+        delete[] tmp_msbB;
+      } else {
+        aux->wrap_computation(tmpB, wB, dim2 * dim3, bwB);
+      }
+      uint64_t *wB64 = new uint64_t[dim2 * dim3];
+      for (int i = 0; i < dim2 * dim3; i++) {
+        wB64[i] = uint64_t(wB[i]);
+      }
+      matmul_multiplexer(dim1, dim2, dim3, tmpA, wB64, wB_A, bwA, 1, bwC - bwB,
+                         accumulate, mode);
+      delete[] wB64;
+    }
+  }
+  /* print_vec(this, wA_B, bwC - bwA, dim); */
+  /* print_vec(this, wB_A, bwC - bwB, dim); */
+
+  uint64_t *tmpC = new uint64_t[dim];
+  int inner_loop_size = (accumulate ? dim2 : 1);
+  for (int i = 0; i < dim; i++) {
+    tmpC[i] =
+        (local_terms[i] + cross_terms[i] - pow_A * wA_B[i] - pow_B * wB_A[i]) &
+        maskC;
+    if (signed_arithmetic) {
+      for (int j = 0; j < inner_loop_size; j++) {
+        int idx = (accumulate ? i : i / dim2);
+        int common_idx = (accumulate ? j : i % dim2);
+        int row_idx = idx / dim3;
+        int col_idx = idx % dim3;
+        int A_idx = row_idx * dim2 + common_idx;
+        int B_idx = common_idx * dim3 + col_idx;
+        if (signed_B) {
+          if (party == ALICE) {
+            tmpC[i] = (tmpC[i] - pow_A_2 * (tmpB[B_idx] - pow_B * wB[B_idx]) -
+                       pow_B_2 * (tmpA[A_idx] - pow_A * wA[A_idx])) &
+                      maskC;
+          } else { // party == BOB
+            tmpC[i] = (tmpC[i] - pow_A_2 * (tmpB[B_idx] - pow_B * wB[B_idx]) -
+                       pow_B_2 * (tmpA[A_idx] - pow_A * wA[A_idx]) +
+                       pow_A_2 * pow_B_2) &
+                      maskC;
+          }
+        } else {
+          tmpC[i] =
+              (tmpC[i] - pow_A_2 * (tmpB[B_idx] - pow_B * wB[B_idx])) & maskC;
+        }
+      }
+    }
+  }
+  if (accumulate) {
+    trunc->truncate_and_reduce(dim1 * dim3, tmpC, outC, extra_bits, bwC);
+  } else {
+    memcpy(outC, tmpC, dim * sizeof(uint64_t));
+  }
+  /* print_vec(this, outC, bwC, dim); */
+
+  delete[] cross_terms;
+  delete[] local_terms;
+  delete[] wA;
+  delete[] wB;
+  delete[] wA_B;
+  delete[] wB_A;
+  delete[] tmpA;
+  delete[] tmpB;
+  delete[] tmpC;
+}
+
+
+
+void LinearOT::matrix_multiplication_MSB(int32_t dim1, int32_t dim2, int32_t dim3,
+                                     uint64_t *inA, uint64_t *inB,
+                                     uint64_t *outC, int32_t bwA, int32_t bwB,
+                                     int32_t bwC, bool signed_arithmetic,
+                                     bool signed_B, bool accumulate,
+                                     MultMode mode, uint8_t *msbA,
+                                     uint8_t *msbB) {
+  assert(bwC <= 64);
+  assert((bwC <= (bwA + bwB)) && (bwC >= bwA) && (bwC >= bwB));
+  int32_t extra_bits = (accumulate ? ceil(log2(dim2)) : 0);
+
+  uint64_t *tmpA = new uint64_t[dim1 * dim2];
+  uint64_t *tmpB = new uint64_t[dim2 * dim3];
+
+  bool sender_A = false;
+  bool sender_B = false;
+  if (mode == MultMode::Alice_has_A || mode == MultMode::Alice_has_B) {
+    sender_A = true;
+  } else if (mode == MultMode::Bob_has_A || mode == MultMode::Bob_has_B) {
+    sender_B = true;
+  } else {
+    if (extension_cost(dim1, dim2, bwA, bwA + extra_bits, msbA)
+        > extension_cost(dim2, dim3, bwB, bwB + extra_bits, msbB)) {
+      sender_A = true;
+    } else {
+      sender_B = true;
+    }
+  }
+  if (sender_A) {
+    if (mode == MultMode::Alice_has_A || mode == MultMode::Bob_has_A) {
+      for (int i = 0; i < dim1 * dim2; i++) {
+        tmpA[i] = (signed_arithmetic ? signed_val(inA[i], bwA) : inA[i]);
+      }
+    } else {
+      if (signed_arithmetic) {
+        xt->s_extend(dim1 * dim2, inA, tmpA, bwA, bwA + extra_bits, msbA);
+      } else {
+        xt->z_extend(dim1 * dim2, inA, tmpA, bwA, bwA + extra_bits, msbA);
+      }
+    }
+    memcpy(tmpB, inB, dim2 * dim3 * sizeof(uint64_t));
+    bwA = bwA + extra_bits;
+  } else if (sender_B) {
+    if (mode == MultMode::Alice_has_B || mode == MultMode::Bob_has_B) {
+      for (int i = 0; i < dim2 * dim3; i++) {
+        tmpB[i] = ((signed_arithmetic && signed_B) ? signed_val(inB[i], bwB)
+                                                   : inB[i]);
+      }
+    } else {
+      if (signed_arithmetic && signed_B) {
+        xt->s_extend(dim2 * dim3, inB, tmpB, bwB, bwB + extra_bits, msbB);
+      } else {
+        xt->z_extend(dim2 * dim3, inB, tmpB, bwB, bwB + extra_bits, msbB);
+      }
+    }
+    memcpy(tmpA, inA, dim1 * dim2 * sizeof(uint64_t));
+    bwB = bwB + extra_bits;
+  }
+  bwC = bwC + extra_bits;
+  uint64_t maskA = (bwA == 64 ? -1 : ((1ULL << bwA) - 1));
+  uint64_t maskB = (bwB == 64 ? -1 : ((1ULL << bwB) - 1));
+  uint64_t maskC = (bwC == 64 ? -1 : ((1ULL << bwC) - 1));
+  uint64_t pow_A = 1ULL << bwA;
+  uint64_t pow_B = 1ULL << bwB;
+  uint64_t pow_A_2 = (1ULL << (bwA - 1));
+  uint64_t pow_B_2 = (1ULL << (bwB - 1));
+  int32_t dim;
+  if (accumulate)
+    dim = dim1 * dim3;
+  else
+    dim = dim1 * dim2 * dim3;
+
+  for (int i = 0; i < dim1 * dim2; i++) {
+    if (signed_arithmetic) {
+      if (mode == MultMode::Alice_has_A) {
+        tmpA[i] = (party == ALICE ? tmpA[i] + pow_A_2 : 0) & maskA;
+      } else if (mode == MultMode::Bob_has_A) {
+        tmpA[i] = (party == BOB ? tmpA[i] + pow_A_2 : 0) & maskA;
+      } else {
+        tmpA[i] = (tmpA[i] + (party == BOB ? pow_A_2 : 0)) & maskA;
+      }
+    } else {
+      tmpA[i] = tmpA[i] & maskA;
+    }
+  }
+  for (int i = 0; i < dim2 * dim3; i++) {
+    if (signed_arithmetic && signed_B) {
+      if (mode == MultMode::Alice_has_B) {
+        tmpB[i] = (party == ALICE ? tmpB[i] + pow_B_2 : 0) & maskB;
+      } else if (mode == MultMode::Bob_has_B) {
+        tmpB[i] = (party == BOB ? tmpB[i] + pow_B_2 : 0) & maskB;
+      } else {
+        tmpB[i] = (tmpB[i] + (party == BOB ? pow_B_2 : 0)) & maskB;
+      }
+    } else {
+      tmpB[i] = tmpB[i] & maskB;
+    }
+  }
+  /* print_share(tmpA, bwA, dim1*dim2); */
+  /* print_share(tmpB, bwB, dim2*dim3); */
+  /* print_vec(this, tmpA, bwA, dim1*dim2); */
+  /* print_vec(this, tmpB, bwB, dim2*dim3); */
+  uint64_t *cross_terms = new uint64_t[dim];
+  uint64_t matmul_cross_terms_comm_start = iopack->get_comm();
+  matmul_cross_terms(dim1, dim2, dim3, tmpA, tmpB, cross_terms, bwA, bwB, bwC,
+                     accumulate, mode);
+  uint64_t matmul_cross_terms_comm_end = iopack->get_comm();
+
+
+  std::cout << "matmul_cross_terms_communication: " << matmul_cross_terms_comm_end - matmul_cross_terms_comm_start << std::endl;
+  /* print_vec(this, cross_terms, bwC, dim); */
+
+  uint64_t *local_terms = new uint64_t[dim];
+  if (party == ALICE &&
+      (mode == MultMode::Alice_has_A || mode == MultMode::Alice_has_B)) {
+    matmul_cleartext(dim1, dim2, dim3, tmpA, tmpB, local_terms, accumulate);
+  } else if (party == BOB &&
+             (mode == MultMode::Bob_has_A || mode == MultMode::Bob_has_B)) {
+    matmul_cleartext(dim1, dim2, dim3, tmpA, tmpB, local_terms, accumulate);
+  } else if (mode == MultMode::None) {
+    matmul_cleartext(dim1, dim2, dim3, tmpA, tmpB, local_terms, accumulate);
+  } else {
+    memset(local_terms, 0, dim * sizeof(uint64_t));
+  }
+  /* print_vec(this, local_terms, bwC, dim); */
+
+  uint8_t *wA = new uint8_t[dim1 * dim2];
+  uint8_t *wB = new uint8_t[dim2 * dim3];
+  uint64_t *wA_B = new uint64_t[dim];
+  uint64_t *wB_A = new uint64_t[dim];
+
+  if (bwC > bwA) {
+    if (mode == MultMode::Alice_has_A || mode == MultMode::Bob_has_A) {
+      memset(wA, 0, dim1 * dim2 * sizeof(uint8_t));
+      memset(wA_B, 0, dim * sizeof(uint64_t));
+    } else {
+      if (msbA != nullptr) {
+        uint8_t *tmp_msbA = new uint8_t[dim1 * dim2];
+        if (signed_arithmetic) {
+          for (int i = 0; i < dim1 * dim2; i++) {
+            tmp_msbA[i] = (party == ALICE ? msbA[i] ^ 1 : msbA[i]);
+          }
+        } else {
+          for (int i = 0; i < dim1 * dim2; i++) {
+            tmp_msbA[i] = (sender_A && (extra_bits > 0) ? 0 : msbA[i]);
+          }
+        }
+        uint64_t MSB_to_Wrap_comm_start = iopack->get_comm();
+        aux->knowMSB_to_Wrap(tmpA, tmp_msbA, wA, dim1 * dim2, bwA);
+
+        uint64_t MSB_to_Wrap_comm_end = iopack->get_comm();
+
+        std::cout << "MSB2wrap_communication: " << MSB_to_Wrap_comm_end - MSB_to_Wrap_comm_start << std::endl;
+        delete[] tmp_msbA;
+      } else {
+
+        aux->wrap_computation(tmpA, wA, dim1 * dim2, bwA);
+      }
+      uint64_t *wA64 = new uint64_t[dim1 * dim2];
+      for (int i = 0; i < dim1 * dim2; i++) {
+        wA64[i] = uint64_t(wA[i]);
+      }
+      uint64_t matmul_multiplexer_comm_start = iopack->get_comm();
+      matmul_multiplexer(dim1, dim2, dim3, wA64, tmpB, wA_B, 1, bwB, bwC - bwA,
+                         accumulate, mode);
+      uint64_t matmul_multiplexer_comm_end = iopack->get_comm();
+      std::cout << "matmul_multiplexer_communication: " << matmul_multiplexer_comm_end - matmul_multiplexer_comm_start << std::endl;
+      delete[] wA64;
+    }
+  }
+  if (bwC > bwB) {
+    if (mode == MultMode::Alice_has_B || mode == MultMode::Bob_has_B) {
+      memset(wB, 0, dim2 * dim3 * sizeof(uint8_t));
+      memset(wB_A, 0, dim * sizeof(uint64_t));
+    } else {
+      if (msbB != nullptr) {
+        uint8_t *tmp_msbB = new uint8_t[dim2 * dim3];
+        if (signed_arithmetic && signed_B) {
+          for (int i = 0; i < dim2 * dim3; i++) {
+            tmp_msbB[i] = (party == ALICE ? msbB[i] ^ 1 : msbB[i]);
+          }
+        } else {
+          for (int i = 0; i < dim2 * dim3; i++) {
+            tmp_msbB[i] = (sender_B && (extra_bits > 0) ? 0 : msbB[i]);
+          }
+        }
+        aux->knowMSB_to_Wrap(tmpB, tmp_msbB, wB, dim2 * dim3, bwB);
         delete[] tmp_msbB;
       } else {
         aux->wrap_computation(tmpB, wB, dim2 * dim3, bwB);
