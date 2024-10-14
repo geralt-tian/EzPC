@@ -156,6 +156,8 @@ public:
         // bitwidth of x
         int32_t bw_x);
 
+    void clear_MSB_to_Wrap_bitMul(int32_t dim, uint64_t *inA, uint8_t *msb, uint64_t *outC, int32_t bwC);
+
     // Bitwise AND
     void AND(
         // input A (boolean) vector

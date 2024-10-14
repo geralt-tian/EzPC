@@ -32,7 +32,8 @@ XTProtocol *ext;
 
 int bwL = 21; // 矩阵位宽
 uint64_t mask_bwL = (bwL == 64 ? -1 : ((1ULL << bwL) - 1));
-
+int bwL_1 = bwL - 1;
+uint64_t mask_bwL_1 = (bwL_1 == 64 ? -1 : ((1ULL << bwL_1) - 1));
 bool signed_B = true;           // 表示矩阵B是否为有符号数
 bool accumulate = true;         // 决定是否累加结果
 bool precomputed_MSBs = false;  // 决定是否预计算最高有效位
@@ -144,71 +145,6 @@ void select_share(uint8_t *sel, uint64_t *x, uint64_t *y, uint64_t *output, int3
     for (int i = 0; i < dim; i++)
     {
         output[i] = (output[i] + y[i]) & mask;
-    }
-}
-
-void clear_MSB_to_Wrap_bitMul(int32_t dim, uint64_t *inA, uint8_t *msb,  uint64_t *outC, int32_t bwC)
-{
-    uint64_t mask_bwC = (bwC == 64 ? -1 : ((1ULL << bwC) - 1));
-    uint64_t *r = new uint64_t[dim];
-    uint64_t half = 1ULL << (bwC - 1);
-    for (int i = 0; i < dim; i++)
-    {
-        if (msb[i] == 0)
-        {
-            if (inA[i] < half) 
-                r[i] = 1;
-            else
-                r[i] = 0;
-        }
-        else
-        {
-            if (inA[i] >= half) 
-                r[i] = 1;
-            else
-                r[i] = 0;
-        }
-        // std::cout << "r[" << i << "] = " << r[i] << std::endl;
-    }
-
-    // Perform the multiplication
-    uint64_t *bit_mul = new uint64_t[dim];
-    if (party == sci::ALICE)
-    {
-
-        sci::PRG128 prg;
-        uint64_t *data0 = new uint64_t[dim];
-        prg.random_data(data0, dim * sizeof(uint64_t));
-        otpack->iknp_straight->send_cot(data0, r, dim, bwC );
-        for (int i = 0; i < dim; i++)
-        {
-            // assert (msb[i] == 0);
-            if (msb[i] == 0)
-                outC[i] = -( (1ULL << bwC) - data0[i]) & mask_bwC;
-            else
-                outC[i] = ( (1ULL << bwC) - data0[i]) & mask_bwC;
-
-        }
-        delete[] data0;
-    }
-    else
-    { // party == BOB
-        bool *choice = new bool[dim];
-        for (int i = 0; i < dim; i++)
-        {
-            choice[i] = r[i];
-        }
-        uint64_t *data = new uint64_t[dim];
-        otpack->iknp_straight->recv_cot(data, choice, dim, bwC );
-        for (int i = 0; i < dim; i++)
-        {
-            // assert (msb[i] == 0);
-            if (msb[i] == 0)
-                outC[i] = (1 - data[i]) & mask_bwC;
-            else    
-                outC[i] = (data[i]) & mask_bwC;
-        }
-        delete[] choice;
     }
 }
 
@@ -649,15 +585,19 @@ int main(int argc, char **argv)
         {
             msb_b_extend[i] = 1;
         }
-        ext->s_extend(dim, b_alice, b_SExt, lb, bwL, msb_b_extend);
+        // ext->s_extend(dim, b_alice, b_SExt, lb, bwL, msb_b_extend);
+        std::cout << "b_alice[" << 0 << "] = " << b_alice[0] << std::endl;
+        ext->s_extend_msb(dim, b_alice, b_SExt, lb, bwL, msb_b_extend);
     }
     else
     {
         for (int i = 0; i < dim; i++)
         {
-            msb_b_extend[i] = 0;
+            msb_b_extend[i] = 1;
         }
-        ext->s_extend(dim, b_bob, b_SExt, lb, bwL, msb_b_extend);
+        // ext->s_extend(dim, b_bob, b_SExt, lb, bwL, msb_b_extend);
+        std::cout << "b_alice[" << 0 << "] = " << b_alice[0] << std::endl;
+        ext->s_extend_msb(dim, b_bob, b_SExt, lb, bwL, msb_b_extend);
     }
     uint64_t s_extend_comm_end = iopack->get_comm();
 
@@ -756,21 +696,51 @@ int main(int argc, char **argv)
     // online
     uint64_t *xhalf = new uint64_t[dim];
     uint64_t *abs_xhalf = new uint64_t[dim];
-
+    uint64_t *bitMul_wrap = new uint64_t[dim];
     if (acc == 2)
     {
         std::cout << "acc == 2" << std::endl;
         if (party == ALICE)
         {
-            // clear_MSB_to_Wrap_bitMul(dim, inA, msbtest, outC, 1);
+            // std::cout << "inA[" << 0 << "] = " << inA[0] << std::endl;
+            // std::cout << "msbA[" << 0 << "] = " << (static_cast<int>(msbA[0])) << std::endl;
+            // clear_MSB_to_Wrap_bitMul(dim, inA, msbA, bitMul_wrap, bwL);
+            // std::cout << "bitMul_wrap[" << 0 << "] = " << bitMul_wrap[0] << std::endl;
+            // for (int i = 0; i < dim; i++)
+            // {
+            //     xhalf[i] = ((inA[i] >> 1) - bitMul_wrap[i] * (uint64_t)pow(2, bwL - 1)) & mask_bwL;
+            // }
+            // std::cout << "xhalf[" << 0 << "] = " << xhalf[0] << std::endl;
             trunc_oracle->truncate(dim, inA, xhalf, 1, bwL, true, msbA);
-            trunc_oracle->truncate(dim, EMUX_output_x1, abs_xhalf, 1, bwL, true, msb_zero);
+
+            aux->clear_MSB_to_Wrap_bitMul(dim, EMUX_output_x1, msb_zero, bitMul_wrap, bwL);
+            std::cout << "bitMul_wrap[" << 0 << "] = " << bitMul_wrap[0] << std::endl;
+            for (int i = 0; i < dim; i++)
+            {
+                abs_xhalf[i] = ((EMUX_output_x1[i] >> 1) - bitMul_wrap[i] * (uint64_t)pow(2, bwL - 1)) & mask_bwL;
+            }
+            // trunc_oracle->truncate(dim, EMUX_output_x1, abs_xhalf, 1, bwL, true, msb_zero);
         }
         else
         {
-            // clear_MSB_to_Wrap_bitMul(dim, inB, msbtest, outC, bwL);
+            // std::cout << "inB[" << 0 << "] = " << inB[0] << std::endl;
+            // std::cout << "msbB[" << 0 << "] = " << (static_cast<int>(msbB[0])) << std::endl;
+            // clear_MSB_to_Wrap_bitMul(dim, inB, msbB, bitMul_wrap, bwL);
+            // std::cout << "bitMul_wrap[" << 0 << "] = " << bitMul_wrap[0] << std::endl;
+            // for (int i = 0; i < dim; i++)
+            // {
+            //     xhalf[i] = ((inA[i] >> 1) - bitMul_wrap[i] * (uint64_t)pow(2, bwL - 1)) & mask_bwL;
+            // }
+            // std::cout << "xhalf[" << 0 << "] = " << xhalf[0] << std::endl;
             trunc_oracle->truncate(dim, inB, xhalf, 1, bwL, true, msbB);
-            trunc_oracle->truncate(dim, EMUX_output_x1, abs_xhalf, 1, bwL, true, msb_zero);
+
+            aux->clear_MSB_to_Wrap_bitMul(dim, EMUX_output_x1, msb_zero, bitMul_wrap, bwL);
+            std::cout << "bitMul_wrap[" << 0 << "] = " << bitMul_wrap[0] << std::endl;
+            for (int i = 0; i < dim; i++)
+            {
+                abs_xhalf[i] = ((EMUX_output_x1[i] >> 1) - bitMul_wrap[i] * (uint64_t)pow(2, bwL - 1)) & mask_bwL;
+            }
+            // trunc_oracle->truncate(dim, EMUX_output_x1, abs_xhalf, 1, bwL, true, msb_zero);
         }
     }
     else
@@ -975,13 +945,12 @@ int main(int argc, char **argv)
     std::cout << "unsigned_mul: " << unsigned_mul_reverse_comm_end - unsigned_mul_reverse_comm_start << std::endl;
 
     uint64_t *outC = new uint64_t[dim];
-    uint8_t *msbtest=new uint8_t[dim];
+    uint8_t *msbtest = new uint8_t[dim];
     sci::PRG128 prg;
-    for (int i=0;i<dim;i++)
+    for (int i = 0; i < dim; i++)
     {
-        msbtest[i]=1;
+        msbtest[i] = 1;
     }
-
 
     // for (int i=0;i<dim;i++)
     // {
@@ -991,15 +960,14 @@ int main(int argc, char **argv)
     //         msbtest[i]=0;
     // }
 
-
-    clear_MSB_to_Wrap_bitMul(dim, b_SExt, msbtest, outC, bwL);
+    // clear_MSB_to_Wrap_bitMul(dim, b_SExt, msbtest, outC, bwL);
 
     // uint64_t *received_ouC = new uint64_t[dim];
     // if (party == ALICE)
     // {
     //     iopack->io->send_data(outC, dim * sizeof(uint64_t));
     //     for (int i = 0; i < dim; i++)
-    //     std::cout << "b_SExt[" << i << "] = " << b_SExt[i] << std::endl;
+    //         std::cout << "b_SExt[" << i << "] = " << b_SExt[i] << std::endl;
     // }
     // else
     // {

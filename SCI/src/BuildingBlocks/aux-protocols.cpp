@@ -467,6 +467,73 @@ void AuxProtocols::MSB_to_Wrap(uint64_t *x, uint8_t *msb_x, uint8_t *wrap_x,
   }
 }
 
+
+
+
+void AuxProtocols::clear_MSB_to_Wrap_bitMul(int32_t dim, uint64_t *inA, uint8_t *msb, uint64_t *outC, int32_t bwC)
+{
+    uint64_t mask_bwC = (bwC == 64 ? -1 : ((1ULL << bwC) - 1));
+    uint64_t *r = new uint64_t[dim];
+    uint64_t half = 1ULL << (bwC - 1);
+    for (int i = 0; i < dim; i++)
+    {
+        if (msb[i] == 0)
+        {
+            if (inA[i] < half)
+                r[i] = 1;
+            else
+                r[i] = 0;
+        }
+        else
+        {
+            if (inA[i] >= half)
+                r[i] = 1;
+            else
+                r[i] = 0;
+        }
+        // std::cout << "r[" << i << "] = " << r[i] << std::endl;
+    }
+
+    // Perform the multiplication
+    uint64_t *bit_mul = new uint64_t[dim];
+    if ( party == sci::ALICE)
+    {
+
+        sci::PRG128 prg;
+        uint64_t *data0 = new uint64_t[dim];
+        prg.random_data(data0, dim * sizeof(uint64_t));
+        otpack->iknp_straight->send_cot(data0, r, dim, bwC);
+        for (int i = 0; i < dim; i++)
+        {
+            // assert (msb[i] == 0);
+            if (msb[i] == 0)
+                outC[i] = -((1ULL << bwC) - data0[i]) & mask_bwC;
+            else
+                outC[i] = ((1ULL << bwC) - data0[i]) & mask_bwC;
+        }
+        delete[] data0;
+    }
+    else
+    { // party == BOB
+        bool *choice = new bool[dim];
+        for (int i = 0; i < dim; i++)
+        {
+            choice[i] = r[i];
+        }
+        uint64_t *data = new uint64_t[dim];
+        otpack->iknp_straight->recv_cot(data, choice, dim, bwC);
+        for (int i = 0; i < dim; i++)
+        {
+            // assert (msb[i] == 0);
+            if (msb[i] == 0)
+                outC[i] = (1 - data[i]) & mask_bwC;
+            else
+                outC[i] = (data[i]) & mask_bwC;
+        }
+        delete[] choice;
+    }
+}
+
 void AuxProtocols::AND(uint8_t *x, uint8_t *y, uint8_t *z, int32_t size)
 {
   int32_t old_size = size;
