@@ -483,7 +483,7 @@ public:
     {
       // res[i] = leaf_res_cmp[i];
       // std::cout << "leaf_res_eq[" << i << "] = " << static_cast<int>(leaf_res_eq[i]) << std::endl;
-      std::cout << "leaf_res_cmp[" << i << "] = " << static_cast<int>(leaf_res_cmp[i]) << std::endl;
+      // std::cout << "leaf_res_cmp[" << i << "] = " << static_cast<int>(leaf_res_cmp[i]) << std::endl;
     }
 
       for (int i = 0; i < num_cmps; i++)

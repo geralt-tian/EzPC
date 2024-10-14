@@ -142,6 +142,7 @@ public:
 
     void knowMSB_to_Wrap(uint64_t *x, uint8_t *msb_x, uint8_t *wrap_x,
                          int32_t size, int32_t bw_x);
+                         
     // MSB to Wrap computation
     void MSB_to_Wrap(
         // input vector

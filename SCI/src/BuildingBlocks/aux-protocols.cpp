@@ -415,6 +415,17 @@ void AuxProtocols::knowMSB_to_Wrap(uint64_t *x, uint8_t *msb_x, uint8_t *wrap_x,
 }
 
 
+
+// void AuxProtocols::knowMSB_to_Wrap(uint64_t *x, uint8_t *msb_x, uint8_t *wrap_x,
+//                                int32_t size, int32_t bw_x)
+// {
+
+//   bit_mul(int32_t dim, uint64_t *x, uint8_t *msb_x, uint64_t *wrap_x, int32_t bw_x)
+
+// }
+
+
+
 void AuxProtocols::MSB_to_Wrap(uint64_t *x, uint8_t *msb_x, uint8_t *wrap_x,
                                int32_t size, int32_t bw_x)
 {
