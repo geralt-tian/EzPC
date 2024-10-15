@@ -144,7 +144,7 @@ void AuxProtocols::multiplexerabs(uint8_t *sel, uint64_t *x, uint64_t *y,
   // std::cout << "corr_data[" << 0 << "] = " << corr_data[0] << std::endl;
 #pragma omp parallel num_threads(2)
   {
-    // uint64_t comm_start_mux = iopack->get_comm(); 
+    // uint64_t comm_start_mux = iopack->get_comm();
     if (omp_get_thread_num() == 1)
     {
 
@@ -182,7 +182,7 @@ void AuxProtocols::multiplexerabs(uint8_t *sel, uint64_t *x, uint64_t *y,
 
     uint64_t temp1 = (2 * x[i] * uint64_t(sel[i])) & mask_y;
     uint64_t temp2 = (2 * ((data_R[i] - data_S[i]) & mask_y)) & mask_y;
-    y[i] = (temp1 + temp2 - x[i]) & mask_y;//这里segmentation fault
+    y[i] = (temp1 + temp2 - x[i]) & mask_y; // 这里segmentation fault
     // y[i] = ((2*x[i] * uint64_t(sel[i]) + 2*((data_R[i] - data_S[i])& mask_y) - x[i]  ) & mask_y);
   }
   // std::cout << "sel[" << 0 << "] = " << static_cast<int>(sel[0]) << std::endl;
@@ -311,9 +311,8 @@ void AuxProtocols::MSB(uint64_t *x, uint8_t *msb_x, int32_t size,
   delete[] msb_xb;
 }
 
-
 void AuxProtocols::MSBsec(uint64_t *x, uint8_t *msb_x, int32_t size,
-                       int32_t bw_x)
+                          int32_t bw_x)
 {
   assert(bw_x <= 64);
   int32_t shift = bw_x - 1;
@@ -329,7 +328,7 @@ void AuxProtocols::MSBsec(uint64_t *x, uint8_t *msb_x, int32_t size,
       tmp_x[i] = (shift_mask - tmp_x[i]) & shift_mask;
   }
 
-  mill->compare(msb_x, tmp_x, size, bw_x - 1, true,false,5); // computing greater_than
+  mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 5); // computing greater_than
 
   for (int i = 0; i < size; i++)
   {
@@ -340,9 +339,8 @@ void AuxProtocols::MSBsec(uint64_t *x, uint8_t *msb_x, int32_t size,
   delete[] msb_xb;
 }
 
-
-void AuxProtocols::MSBnew(uint64_t *x, uint8_t *msb_x,uint8_t *reswrap, int32_t size,
-                       int32_t bw_x)
+void AuxProtocols::MSBnew(uint64_t *x, uint8_t *msb_x, uint8_t *reswrap, int32_t size,
+                          int32_t bw_x)
 {
   assert(bw_x <= 64);
   int32_t shift = bw_x - 1;
@@ -358,7 +356,7 @@ void AuxProtocols::MSBnew(uint64_t *x, uint8_t *msb_x,uint8_t *reswrap, int32_t 
       tmp_x[i] = (shift_mask - tmp_x[i]) & shift_mask;
   }
 
-  mill->comparetest(msb_x,reswrap, tmp_x, size, bw_x - 1, true,false,7); // computing greater_than
+  mill->comparetest(msb_x, reswrap, tmp_x, size, bw_x - 1, true, false, 7); // computing greater_than
 
   for (int i = 0; i < size; i++)
   {
@@ -368,29 +366,30 @@ void AuxProtocols::MSBnew(uint64_t *x, uint8_t *msb_x,uint8_t *reswrap, int32_t 
   delete[] tmp_x;
   delete[] msb_xb;
 }
-
-
 
 void AuxProtocols::knowMSB_to_Wrap(uint64_t *x, uint8_t *msb_x, uint8_t *wrap_x,
-                               int32_t size, int32_t bw_x)
+                                   int32_t size, int32_t bw_x)
 {
   assert(bw_x <= 64);
-  uint8_t *t = new uint8_t [size];
-  uint8_t *t1 = new uint8_t [size];
-  uint8_t *z = new uint8_t [size];
-  if(party == sci::ALICE){
-  for(int i=0;i<size;i++){
-    t[i] = (x[i]>>(bw_x-1))&1;
-    t1[i] =0;
+  uint8_t *t = new uint8_t[size];
+  uint8_t *t1 = new uint8_t[size];
+  uint8_t *z = new uint8_t[size];
+  if (party == sci::ALICE)
+  {
+    for (int i = 0; i < size; i++)
+    {
+      t[i] = (x[i] >> (bw_x - 1)) & 1;
+      t1[i] = 0;
+    }
   }
+  else
+  {
+    for (int i = 0; i < size; i++)
+    {
+      t1[i] = (x[i] >> (bw_x - 1)) & 1;
+      t[i] = 0;
+    }
   }
-  else{
-    for(int i=0;i<size;i++){
-    t1[i] = (x[i]>>(bw_x-1))&1;
-    t[i] =0;
-  }
-  }
-
 
   AND(t, t1, z, size);
   // for (int i = 0; i < size; i++)
@@ -400,21 +399,21 @@ void AuxProtocols::knowMSB_to_Wrap(uint64_t *x, uint8_t *msb_x, uint8_t *wrap_x,
   //   std:: cout << "z[" << i << "] = " << static_cast<int>(z[i] )<< std::endl;
   // }
 
-  if(party==ALICE){
-  for(int i=0;i<size;i++){
-    wrap_x[i] = (z[i]^t[i])&1;
-  }
+  if (party == ALICE)
+  {
+    for (int i = 0; i < size; i++)
+    {
+      wrap_x[i] = (z[i] ^ t[i]) & 1;
+    }
   }
   else
   {
-      for(int i=0;i<size;i++){
-    wrap_x[i] = (z[i]^t1[i]) &1;
+    for (int i = 0; i < size; i++)
+    {
+      wrap_x[i] = (z[i] ^ t1[i]) & 1;
+    }
   }
-  }
-
 }
-
-
 
 // void AuxProtocols::knowMSB_to_Wrap(uint64_t *x, uint8_t *msb_x, uint8_t *wrap_x,
 //                                int32_t size, int32_t bw_x)
@@ -423,8 +422,6 @@ void AuxProtocols::knowMSB_to_Wrap(uint64_t *x, uint8_t *msb_x, uint8_t *wrap_x,
 //   bit_mul(int32_t dim, uint64_t *x, uint8_t *msb_x, uint64_t *wrap_x, int32_t bw_x)
 
 // }
-
-
 
 void AuxProtocols::MSB_to_Wrap(uint64_t *x, uint8_t *msb_x, uint8_t *wrap_x,
                                int32_t size, int32_t bw_x)
@@ -467,71 +464,173 @@ void AuxProtocols::MSB_to_Wrap(uint64_t *x, uint8_t *msb_x, uint8_t *wrap_x,
   }
 }
 
+void AuxProtocols::sextend_MSB_to_Wrap_bitMul(int32_t dim, uint64_t *inA, uint8_t *msb, uint64_t *outC, int32_t bwC)
+{
+  uint64_t mask_bwC = (bwC == 64 ? -1 : ((1ULL << bwC) - 1));
+  uint64_t *r = new uint64_t[dim];
+  uint64_t half = 1ULL << (bwC - 1);
+  for (int i = 0; i < dim; i++)
+  {
+    assert(msb[i] == 1);
+    if (((mask_bwC - inA[i]) & mask_bwC) < half)
+      r[i] = 1;
+    else
+      r[i] = 0;
+  }
+  // std::cout << "r[" << i << "] = " << r[i] << std::endl;
 
+
+// Perform the multiplication
+uint64_t *bit_mul = new uint64_t[dim];
+if (party == sci::ALICE)
+{
+
+  sci::PRG128 prg;
+  uint64_t *data0 = new uint64_t[dim];
+  prg.random_data(data0, dim * sizeof(uint64_t));
+  otpack->iknp_straight->send_cot(data0, r, dim, bwC);
+  for (int i = 0; i < dim; i++)
+  {
+    // assert (msb[i] == 0);
+    if (msb[i] == 0)
+      outC[i] = -((1ULL << bwC) - data0[i]) & mask_bwC;
+    else
+      outC[i] = ((1ULL << bwC) - data0[i]) & mask_bwC;
+  }
+  delete[] data0;
+}
+else
+{ // party == BOB
+  bool *choice = new bool[dim];
+  for (int i = 0; i < dim; i++)
+  {
+    choice[i] = r[i];
+  }
+  uint64_t *data = new uint64_t[dim];
+  otpack->iknp_straight->recv_cot(data, choice, dim, bwC);
+  for (int i = 0; i < dim; i++)
+  {
+    // assert (msb[i] == 0);
+    if (msb[i] == 0)
+      outC[i] = (1 - data[i]) & mask_bwC;
+    else
+      outC[i] = (data[i]) & mask_bwC;
+  }
+  delete[] choice;
+}
+}
+
+
+
+void AuxProtocols::lastbit_MSB_to_Wrap_bitMul(int32_t dim, uint64_t *inA,  uint64_t *outC, int32_t bwC)
+{
+  uint64_t mask_bwC = (bwC == 64 ? -1 : ((1ULL << bwC) - 1));
+  uint64_t *r = new uint64_t[dim];
+  uint64_t half = 1ULL << (bwC - 1);
+  for (int i = 0; i < dim; i++)
+  {
+
+        r[i] = inA[i]& 1;
+    // std::cout << "r[" << i << "] = " << r[i] << std::endl;
+  }
+
+  // Perform the multiplication
+  uint64_t *bit_mul = new uint64_t[dim];
+  if (party == sci::ALICE)
+  {
+
+    sci::PRG128 prg;
+    uint64_t *data0 = new uint64_t[dim];
+    prg.random_data(data0, dim * sizeof(uint64_t));
+    otpack->iknp_straight->send_cot(data0, r, dim, bwC);
+    for (int i = 0; i < dim; i++)
+    {
+      // assert (msb[i] == 0);
+        outC[i] = ((1ULL << bwC) - data0[i]) & mask_bwC;
+    }
+    delete[] data0;
+  }
+  else
+  { // party == BOB
+    bool *choice = new bool[dim];
+    for (int i = 0; i < dim; i++)
+    {
+      choice[i] = r[i];
+    }
+    uint64_t *data = new uint64_t[dim];
+    otpack->iknp_straight->recv_cot(data, choice, dim, bwC);
+    for (int i = 0; i < dim; i++)
+    {
+      // assert (msb[i] == 0);
+        outC[i] = (data[i]) & mask_bwC;
+    }
+    delete[] choice;
+  }
+}
 
 
 void AuxProtocols::clear_MSB_to_Wrap_bitMul(int32_t dim, uint64_t *inA, uint8_t *msb, uint64_t *outC, int32_t bwC)
 {
-    uint64_t mask_bwC = (bwC == 64 ? -1 : ((1ULL << bwC) - 1));
-    uint64_t *r = new uint64_t[dim];
-    uint64_t half = 1ULL << (bwC - 1);
-    for (int i = 0; i < dim; i++)
+  uint64_t mask_bwC = (bwC == 64 ? -1 : ((1ULL << bwC) - 1));
+  uint64_t *r = new uint64_t[dim];
+  uint64_t half = 1ULL << (bwC - 1);
+  for (int i = 0; i < dim; i++)
+  {
+    if (msb[i] == 0)
     {
-        if (msb[i] == 0)
-        {
-            if (inA[i] < half)
-                r[i] = 1;
-            else
-                r[i] = 0;
-        }
-        else
-        {
-            if (inA[i] >= half)
-                r[i] = 1;
-            else
-                r[i] = 0;
-        }
-        // std::cout << "r[" << i << "] = " << r[i] << std::endl;
-    }
-
-    // Perform the multiplication
-    uint64_t *bit_mul = new uint64_t[dim];
-    if ( party == sci::ALICE)
-    {
-
-        sci::PRG128 prg;
-        uint64_t *data0 = new uint64_t[dim];
-        prg.random_data(data0, dim * sizeof(uint64_t));
-        otpack->iknp_straight->send_cot(data0, r, dim, bwC);
-        for (int i = 0; i < dim; i++)
-        {
-            // assert (msb[i] == 0);
-            if (msb[i] == 0)
-                outC[i] = -((1ULL << bwC) - data0[i]) & mask_bwC;
-            else
-                outC[i] = ((1ULL << bwC) - data0[i]) & mask_bwC;
-        }
-        delete[] data0;
+      if (inA[i] < half)
+        r[i] = 1;
+      else
+        r[i] = 0;
     }
     else
-    { // party == BOB
-        bool *choice = new bool[dim];
-        for (int i = 0; i < dim; i++)
-        {
-            choice[i] = r[i];
-        }
-        uint64_t *data = new uint64_t[dim];
-        otpack->iknp_straight->recv_cot(data, choice, dim, bwC);
-        for (int i = 0; i < dim; i++)
-        {
-            // assert (msb[i] == 0);
-            if (msb[i] == 0)
-                outC[i] = (1 - data[i]) & mask_bwC;
-            else
-                outC[i] = (data[i]) & mask_bwC;
-        }
-        delete[] choice;
+    {
+      if (inA[i] >= half)
+        r[i] = 1;
+      else
+        r[i] = 0;
     }
+    // std::cout << "r[" << i << "] = " << r[i] << std::endl;
+  }
+
+  // Perform the multiplication
+  uint64_t *bit_mul = new uint64_t[dim];
+  if (party == sci::ALICE)
+  {
+
+    sci::PRG128 prg;
+    uint64_t *data0 = new uint64_t[dim];
+    prg.random_data(data0, dim * sizeof(uint64_t));
+    otpack->iknp_straight->send_cot(data0, r, dim, bwC);
+    for (int i = 0; i < dim; i++)
+    {
+      // assert (msb[i] == 0);
+      if (msb[i] == 0)
+        outC[i] = -((1ULL << bwC) - data0[i]) & mask_bwC;
+      else
+        outC[i] = ((1ULL << bwC) - data0[i]) & mask_bwC;
+    }
+    delete[] data0;
+  }
+  else
+  { // party == BOB
+    bool *choice = new bool[dim];
+    for (int i = 0; i < dim; i++)
+    {
+      choice[i] = r[i];
+    }
+    uint64_t *data = new uint64_t[dim];
+    otpack->iknp_straight->recv_cot(data, choice, dim, bwC);
+    for (int i = 0; i < dim; i++)
+    {
+      // assert (msb[i] == 0);
+      if (msb[i] == 0)
+        outC[i] = (1 - data[i]) & mask_bwC;
+      else
+        outC[i] = (data[i]) & mask_bwC;
+    }
+    delete[] choice;
+  }
 }
 
 void AuxProtocols::AND(uint8_t *x, uint8_t *y, uint8_t *z, int32_t size)

@@ -41,6 +41,7 @@ MultMode mode = MultMode::None; // 乘法模式
 
 // uint64_t la = 14;//la=5 f=5,la=14,f=12
 uint64_t lb = 10;
+uint64_t mask_lb = (lb == 64 ? -1 : ((1ULL << lb) - 1));
 // uint64_t f = 12;
 uint64_t la = 6; // la=5 f=5,la=14,f=12
 uint64_t f = 11;
@@ -353,9 +354,9 @@ int main(int argc, char **argv)
     // la=6 lb=10 size=128
     // std::vector<std::vector<uint64_t>> data = {{0, 0}, {1, 0}, {2, 1023}, {3, 1021}, {4, 1019}, {4, 1019}, {5, 1016}, {6, 1013}, {7, 1009}, {7, 1009}, {8, 1004}, {9, 998}, {9, 998}, {10, 992}, {11, 985}, {11, 985}, {12, 977}, {13, 968}, {13, 968}, {14, 959}, {14, 959}, {15, 948}, {15, 949}, {16, 937}, {16, 937}, {17, 924}, {17, 924}, {17, 924}, {18, 910}, {18, 910}, {18, 910}, {19, 895}, {19, 895}, {19, 895}, {19, 895}, {19, 895}, {20, 877}, {20, 877}, {20, 876}, {20, 876}, {20, 876}, {20, 876}, {20, 876}, {20, 876}, {20, 876}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 876}, {20, 876}, {20, 876}, {19, 904}, {19, 905}, {19, 905}, {19, 905}, {19, 905}, {19, 905}, {19, 905}, {19, 905}, {19, 904}, {18, 937}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 937}, {17, 975}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 975}, {17, 975}, {17, 975}, {16, 1021}, {16, 1022}, {16, 1022}, {16, 1022}, {16, 1022}, {16, 1022}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}};
     // la=6 lb=10 size=64
-    // ??std::vector<std::vector<uint64_t>> data = {{1, 0}, {2, 1023}, {4, 1019}, {6, 1013}, {7, 1009}, {8, 1004}, {10, 992}, {11, 985}, {12, 977}, {14, 959}, {15, 949}, {16, 937}, {16, 937}, {17, 924}, {18, 910}, {18, 911}, {19, 895}, {19, 895}, {20, 877}, {20, 876}, {20, 876}, {20, 876}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 876}, {19, 904}, {19, 905}, {19, 905}, {19, 905}, {19, 905}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 975}, {16, 1021}, {16, 1022}, {16, 1022}, {16, 1022}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}};
+    std::vector<std::vector<uint64_t>> data = {{1, 0}, {2, 1023}, {4, 1019}, {6, 1013}, {7, 1009}, {8, 1004}, {10, 992}, {11, 985}, {12, 977}, {14, 959}, {15, 949}, {16, 937}, {16, 937}, {17, 924}, {18, 910}, {18, 911}, {19, 895}, {19, 895}, {20, 877}, {20, 876}, {20, 876}, {20, 876}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 876}, {19, 904}, {19, 905}, {19, 905}, {19, 905}, {19, 905}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 975}, {16, 1021}, {16, 1022}, {16, 1022}, {16, 1022}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}, {16, 0}};
 
-    std::vector<std::vector<uint64_t>> data = {{1, 1023}, {2, 1023}, {4, 1019}, {6, 1013}, {7, 1009}, {8, 1004}, {10, 992}, {11, 985}, {12, 977}, {14, 959}, {15, 949}, {16, 937}, {16, 937}, {17, 924}, {18, 910}, {18, 911}, {19, 895}, {19, 895}, {20, 877}, {20, 876}, {20, 876}, {20, 876}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 876}, {19, 904}, {19, 905}, {19, 905}, {19, 905}, {19, 905}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 975}, {16, 1021}, {16, 1022}, {16, 1022}, {16, 1022}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}};
+    // std::vector<std::vector<uint64_t>> data = {{1, 1023}, {2, 1023}, {4, 1019}, {6, 1013}, {7, 1009}, {8, 1004}, {10, 992}, {11, 985}, {12, 977}, {14, 959}, {15, 949}, {16, 937}, {16, 937}, {17, 924}, {18, 910}, {18, 911}, {19, 895}, {19, 895}, {20, 877}, {20, 876}, {20, 876}, {20, 876}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 877}, {20, 876}, {19, 904}, {19, 905}, {19, 905}, {19, 905}, {19, 905}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {18, 938}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 976}, {17, 975}, {16, 1021}, {16, 1022}, {16, 1022}, {16, 1022}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}, {16, 1023}};
 
     // la=6 lb=10 size=32
     // std::vector<std::vector<uint64_t>> data = {{2,1023}, {5,1017}, {8,1004}, {10,992}, {13,969}, {15,949}, {17,925}, {18,911}, {19,895}, {20,877}, {20,876}, {20,877}, {20,877}, {20,876}, {19,904}, {19,905}, {19,904}, {18,938}, {18,938}, {17,976}, {17,976}, {17,976}, {17,975}, {16,1021}, {16,1022}, {16,1023}, {16,1023}, {16,1023}, {16,0}, {16,0}, {16,0}, {16,0}};
@@ -543,7 +544,7 @@ int main(int argc, char **argv)
     }
     uint64_t *mid_ax = new uint64_t[dim];
     uint64_t STEP8_comm_start = iopack->get_comm();
-    if (acc == 2)
+    if (acc == 1)
     {
         if (party == ALICE)
         {
@@ -584,9 +585,11 @@ int main(int argc, char **argv)
         for (int i = 0; i < dim; i++)
         {
             msb_b_extend[i] = 1;
+            b_alice[i] = (b_alice[i] + 10) & mask_lb;
         }
         // ext->s_extend(dim, b_alice, b_SExt, lb, bwL, msb_b_extend);
         std::cout << "b_alice[" << 0 << "] = " << b_alice[0] << std::endl;
+
         ext->s_extend_msb(dim, b_alice, b_SExt, lb, bwL, msb_b_extend);
     }
     else
@@ -594,9 +597,11 @@ int main(int argc, char **argv)
         for (int i = 0; i < dim; i++)
         {
             msb_b_extend[i] = 1;
+            b_bob[i] = (b_bob[i] - 10) & mask_lb;
         }
         // ext->s_extend(dim, b_bob, b_SExt, lb, bwL, msb_b_extend);
         std::cout << "b_alice[" << 0 << "] = " << b_alice[0] << std::endl;
+
         ext->s_extend_msb(dim, b_bob, b_SExt, lb, bwL, msb_b_extend);
     }
     uint64_t s_extend_comm_end = iopack->get_comm();
@@ -692,56 +697,46 @@ int main(int argc, char **argv)
     }
     uint64_t STEP14_comm_end = iopack->get_comm();
     std::cout << "\n=========STEP15 get x_half ===========" << std::endl;
-
+    int64_t STEP15_comm_start = iopack->get_comm();
     // online
     uint64_t *xhalf = new uint64_t[dim];
     uint64_t *abs_xhalf = new uint64_t[dim];
     uint64_t *bitMul_wrap = new uint64_t[dim];
+    uint64_t *out_last_bitwrap = new uint64_t[dim];
     if (acc == 2)
     {
         std::cout << "acc == 2" << std::endl;
         if (party == ALICE)
         {
-            // std::cout << "inA[" << 0 << "] = " << inA[0] << std::endl;
-            // std::cout << "msbA[" << 0 << "] = " << (static_cast<int>(msbA[0])) << std::endl;
-            // clear_MSB_to_Wrap_bitMul(dim, inA, msbA, bitMul_wrap, bwL);
-            // std::cout << "bitMul_wrap[" << 0 << "] = " << bitMul_wrap[0] << std::endl;
-            // for (int i = 0; i < dim; i++)
-            // {
-            //     xhalf[i] = ((inA[i] >> 1) - bitMul_wrap[i] * (uint64_t)pow(2, bwL - 1)) & mask_bwL;
-            // }
-            // std::cout << "xhalf[" << 0 << "] = " << xhalf[0] << std::endl;
-            trunc_oracle->truncate(dim, inA, xhalf, 1, bwL, true, msbA);
+            // trunc_oracle->truncate(dim, inA, xhalf, 1, bwL, true, msbA);
+            // uint8_t *msb_zero = new uint8_t[dim];
 
+            aux->lastbit_MSB_to_Wrap_bitMul(dim, EMUX_output_x1, out_last_bitwrap, bwL);
             aux->clear_MSB_to_Wrap_bitMul(dim, EMUX_output_x1, msb_zero, bitMul_wrap, bwL);
             std::cout << "bitMul_wrap[" << 0 << "] = " << bitMul_wrap[0] << std::endl;
             for (int i = 0; i < dim; i++)
             {
-                abs_xhalf[i] = ((EMUX_output_x1[i] >> 1) - bitMul_wrap[i] * (uint64_t)pow(2, bwL - 1)) & mask_bwL;
+                abs_xhalf[i] = ((EMUX_output_x1[i] >> 1) - bitMul_wrap[i] * (uint64_t)pow(2, bwL - 1) + out_last_bitwrap[i]) & mask_bwL;
             }
-            // trunc_oracle->truncate(dim, EMUX_output_x1, abs_xhalf, 1, bwL, true, msb_zero);
         }
         else
         {
-            // std::cout << "inB[" << 0 << "] = " << inB[0] << std::endl;
-            // std::cout << "msbB[" << 0 << "] = " << (static_cast<int>(msbB[0])) << std::endl;
-            // clear_MSB_to_Wrap_bitMul(dim, inB, msbB, bitMul_wrap, bwL);
-            // std::cout << "bitMul_wrap[" << 0 << "] = " << bitMul_wrap[0] << std::endl;
-            // for (int i = 0; i < dim; i++)
-            // {
-            //     xhalf[i] = ((inA[i] >> 1) - bitMul_wrap[i] * (uint64_t)pow(2, bwL - 1)) & mask_bwL;
-            // }
-            // std::cout << "xhalf[" << 0 << "] = " << xhalf[0] << std::endl;
-            trunc_oracle->truncate(dim, inB, xhalf, 1, bwL, true, msbB);
+            // trunc_oracle->truncate(dim, inB, xhalf, 1, bwL, true, msbB);
 
+            aux->lastbit_MSB_to_Wrap_bitMul(dim, EMUX_output_x1, out_last_bitwrap, bwL);
             aux->clear_MSB_to_Wrap_bitMul(dim, EMUX_output_x1, msb_zero, bitMul_wrap, bwL);
             std::cout << "bitMul_wrap[" << 0 << "] = " << bitMul_wrap[0] << std::endl;
             for (int i = 0; i < dim; i++)
             {
-                abs_xhalf[i] = ((EMUX_output_x1[i] >> 1) - bitMul_wrap[i] * (uint64_t)pow(2, bwL - 1)) & mask_bwL;
+                abs_xhalf[i] = ((EMUX_output_x1[i] >> 1) - bitMul_wrap[i] * (uint64_t)pow(2, bwL - 1) + out_last_bitwrap[i]) & mask_bwL;
             }
-            // trunc_oracle->truncate(dim, EMUX_output_x1, abs_xhalf, 1, bwL, true, msb_zero);
         }
+        uint64_t *neg_abs_xhalf = new uint64_t[dim];
+        for (int i = 0; i < dim; i++)
+        {
+            neg_abs_xhalf[i] = -abs_xhalf[i] & mask_bwL;
+        }
+        select_share(Drelu, abs_xhalf, neg_abs_xhalf, xhalf, dim, bwL);
     }
     else
     {
@@ -766,6 +761,8 @@ int main(int argc, char **argv)
         std::cout << "xhalf[" << i << "] = " << xhalf[i] << std::endl;
         std::cout << "abs_xhalf[" << i << "] = " << abs_xhalf[i] << std::endl;
     }
+
+    int64_t STEP15_comm_end = iopack->get_comm();
     // std::cout << "xhalf[" << 0 << "] = " << xhalf[0] << std::endl;
     // std::cout << "abs_xhalf[" << 0 << "] = " << abs_xhalf[0] << std::endl;
 
@@ -786,8 +783,9 @@ int main(int argc, char **argv)
     // aux->multiplexer(Drelu_, delta, delta_, dim, bwL, bwL);
     // std::cout << "MUX_output_u[" << 0 << "] =" << MUX_output_u[0] << std::endl;
     uint64_t *MUX_output_g = new uint64_t[dim];
-
+    int64_t STEP21_comm_start = iopack->get_comm();
     select_share(Drelu_, abs_xhalf, z, MUX_output_g, dim, bwL);
+    int64_t STEP21_comm_end = iopack->get_comm();
     for (int i = 0; i < dim; i++)
     {
         std::cout << "Drelu_[" << i << "] = " << static_cast<int>(Drelu_[i]) << std::endl;
@@ -879,7 +877,7 @@ int main(int argc, char **argv)
         }
 
         double sum = 0.0;
-        for (size_t i = 0; i < dim; ++i)
+        for (size_t i = 1; i < dim; ++i) // 去掉了第一个ULP
         {
             sum += (ULPs[i]);
             // std::cout << "ULPs[" << i << "] = " << ULPs[i] << std::endl;
@@ -887,7 +885,7 @@ int main(int argc, char **argv)
         double average = sum / static_cast<double>(dim);
         std::cout << "sum: " << sum << std::endl;
         std::cout << "static_cast<double>(dim): " << static_cast<double>(dim) << std::endl;
-        double max_val = *std::max_element(ULPs, ULPs + dim);
+        double max_val = *std::max_element(ULPs + 1, ULPs + dim); // 去掉了第一个ULP
         std::cout << "average: " << average << std::endl;
         std::cout << "max_val: " << max_val << std::endl;
         // 绘制曲线
@@ -1007,21 +1005,23 @@ int main(int argc, char **argv)
 
     ///////////输出时间和通信
 
-    cout << "STEP3 DRELU Bytes Sent: " << (STEP3_comm_end - STEP3_comm_start) / dim * 8 << " bytes" << endl;
-    cout << "STEP4 EMUX Bytes Sent: " << (STEP4_comm_end - STEP4_comm_start) / dim * 8 << " bytes" << endl;
-    cout << "STEP5 trun&reduce Bytes Sent: " << (STEP5_comm_end - STEP5_comm_start) / dim * 8 << " bytes" << endl;
-    cout << "STEP6 LUT*2 Bytes Sent: " << (STEP6_comm_end - STEP6_comm_start) / dim * 8 << " bytes" << endl;
-    cout << "STEP7 SMUL Bytes Sent: " << (STEP7_comm_end - STEP7_comm_start) / dim * 8 << " bytes" << endl;
-    cout << "STEP8 Trunc Bytes Sent: " << (STEP8_comm_end - STEP8_comm_start) / dim * 8 << " bytes" << endl;
+    cout << "STEP3 MSBnew Bytes Sent: " << (STEP3_comm_end - STEP3_comm_start) / dim * 8 << " bits" << endl;
+    cout << "STEP4 Select_share Bytes Sent: " << (STEP4_comm_end - STEP4_comm_start) / dim * 8 << " bits" << endl;
+    cout << "STEP5 B2A and SS Bytes Sent: " << (STEP5_comm_end - STEP5_comm_start) / dim * 8 << " bits" << endl;
+    cout << "STEP6 LUT*2 Bytes Sent: " << (STEP6_comm_end - STEP6_comm_start) / dim * 8 << " bits" << endl;
+    cout << "STEP7 hadamard_product Bytes Sent: " << (STEP7_comm_end - STEP7_comm_start) / dim * 8 << " bits" << endl;
+    cout << "STEP8 truncate_and_reduce Bytes Sent: " << (STEP8_comm_end - STEP8_comm_start) / dim * 8 << " bits" << endl;
     std::cout << "s_extend_comm: " << (s_extend_comm_end - s_extend_comm_start) / dim * 8 << std::endl;
-    cout << "STEP14 DRELUsec Bytes Sent: " << (STEP14_comm_end - STEP14_comm_start) / dim * 8 << " bytes" << endl;
+    cout << "STEP14 DRELUsec Bytes Sent: " << (STEP14_comm_end - STEP14_comm_start) / dim * 8 << " bits" << endl;
+    cout << "STEP15 clear_MSB_to_Wrap_bitMul and one trunc Bytes Sent: " << (STEP15_comm_end - STEP15_comm_start) / dim * 8 << " bits" << endl;
+    cout << "STEP21 select_share Bytes Sent: " << (STEP21_comm_end - STEP21_comm_start) / dim * 8 << " bits" << endl;
     // cout << "STEP3 Bytes Sent: " << (comm_end - comm_start) << "bytes" << endl;
     // cout << "STEP3 Bytes Sent: " << (comm_end - comm_start) << "bytes" << endl;
     // cout << "STEP3 Bytes Sent: " << (comm_end - comm_start) << "bytes" << endl;
     // cout << "STEP3 Bytes Sent: " << (comm_end - comm_start) << "bytes" << endl;
     // cout << "STEP3 Bytes Sent: " << (comm_end - comm_start) << "bytes" << endl;
     // uint64_t comm_end = iopack->get_comm();
-    cout << "Total Bytes Sent: " << (comm_end - comm_start) / dim * 8 << " bytes" << endl;
+    cout << "Total Bytes Sent: " << (comm_end - comm_start) / dim * 8 << " bits" << endl;
 
     auto time_end = chrono::high_resolution_clock::now();
     cout << "Total time: "

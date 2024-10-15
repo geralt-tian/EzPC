@@ -142,7 +142,7 @@ public:
 
     void knowMSB_to_Wrap(uint64_t *x, uint8_t *msb_x, uint8_t *wrap_x,
                          int32_t size, int32_t bw_x);
-                         
+
     // MSB to Wrap computation
     void MSB_to_Wrap(
         // input vector
@@ -155,6 +155,10 @@ public:
         int32_t size,
         // bitwidth of x
         int32_t bw_x);
+
+    void sextend_MSB_to_Wrap_bitMul(int32_t dim, uint64_t *inA, uint8_t *msb, uint64_t *outC, int32_t bwC);
+
+    void lastbit_MSB_to_Wrap_bitMul(int32_t dim, uint64_t *inA, uint64_t *outC, int32_t bwC);
 
     void clear_MSB_to_Wrap_bitMul(int32_t dim, uint64_t *inA, uint8_t *msb, uint64_t *outC, int32_t bwC);
 
