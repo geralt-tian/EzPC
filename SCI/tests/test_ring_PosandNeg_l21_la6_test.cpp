@@ -272,7 +272,7 @@ int main(int argc, char **argv)
     //////////////////////////////////////////////////////// general版本：直接截取，不用截断协议；高精度版本：使用截断协议
     // step6 check
     std::cout << "\n=========STEP7 get mid s bit for LUT===========" << std::endl;
-    uint64_t STEP5_comm_start = iopack->get_comm();
+    
     trunc_oracle = new Truncation(party, iopack, otpack);
     uint64_t *outtrunc = new uint64_t[dim];
     uint8_t *wrap_ = new uint8_t[dim];
@@ -292,73 +292,72 @@ int main(int argc, char **argv)
         }
     }
 
-    uint64_t *arith_wrap_ = new uint64_t[dim];
+    // uint64_t *arith_wrap_ = new uint64_t[dim];
 
-    prod->aux->B2A(wrap_, arith_wrap_, dim, s);
-    uint64_t *outtrunc_neg = new uint64_t[dim];
-    if (party == ALICE)
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            std::cout << "inA[" << i << "] = " << inA[i] << std::endl;
-            std::cout << "inA_h[" << i << "] = " << inA_h[i] << std::endl;
-            outtrunc[i] = ((inA_h[i] >> (h - s))) & mask_s;
-            std::cout << "arith_wrap_[" << i << "] = " << arith_wrap_[i] << std::endl;
-            std::cout << "outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
-            // outtrunc[i] = ((inA_h[i] >> (h - s)) ) & mask_s;
-            outtrunc_neg[i] = (-static_cast<int>(std::ceil((inA_h[i] - pow(2, h)) / pow(2, h - s)))) & mask_s;
-        }
-    }
-    else
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            std::cout << "inB[" << i << "] = " << inB[i] << std::endl;
-            std::cout << "inB_h[" << i << "] = " << inB_h[i] << std::endl;
-            outtrunc[i] = ((inB_h[i] >> (h - s))) & mask_s;
-            std::cout << "arith_wrap_[" << i << "] = " << arith_wrap_[i] << std::endl;
-            std::cout << "outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
-            outtrunc_neg[i] = (-static_cast<int>(std::ceil((inB_h[i] - pow(2, h)) / pow(2, h - s)))) & mask_s;
-        }
-    }
+    // prod->aux->B2A(wrap_, arith_wrap_, dim, s);
+    // uint64_t *outtrunc_neg = new uint64_t[dim];
+    // if (party == ALICE)
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         std::cout << "inA[" << i << "] = " << inA[i] << std::endl;
+    //         std::cout << "inA_h[" << i << "] = " << inA_h[i] << std::endl;
+    //         outtrunc[i] = ((inA_h[i] >> (h - s))) & mask_s;
+    //         std::cout << "arith_wrap_[" << i << "] = " << arith_wrap_[i] << std::endl;
+    //         std::cout << "outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
+    //         // outtrunc[i] = ((inA_h[i] >> (h - s)) ) & mask_s;
+    //         outtrunc_neg[i] = (-static_cast<int>(std::ceil((inA_h[i] - pow(2, h)) / pow(2, h - s)))) & mask_s;
+    //     }
+    // }
+    // else
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         std::cout << "inB[" << i << "] = " << inB[i] << std::endl;
+    //         std::cout << "inB_h[" << i << "] = " << inB_h[i] << std::endl;
+    //         outtrunc[i] = ((inB_h[i] >> (h - s))) & mask_s;
+    //         std::cout << "arith_wrap_[" << i << "] = " << arith_wrap_[i] << std::endl;
+    //         std::cout << "outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
+    //         outtrunc_neg[i] = (-static_cast<int>(std::ceil((inB_h[i] - pow(2, h)) / pow(2, h - s)))) & mask_s;
+    //     }
+    // }
 
-    uint64_t *I_pos = new uint64_t[dim];
-    uint64_t *I_neg = new uint64_t[dim];
+    // uint64_t *I_pos = new uint64_t[dim];
+    // uint64_t *I_neg = new uint64_t[dim];
 
-    for (int i = 0; i < dim; i++)
-    {
-        I_pos[i] = (outtrunc[i] + arith_wrap_[i]) & mask_s;
-        I_neg[i] = (outtrunc_neg[i] + arith_wrap_[i]) & mask_s;
-    }
+    // for (int i = 0; i < dim; i++)
+    // {
+    //     I_pos[i] = (outtrunc[i] + arith_wrap_[i]) & mask_s;
+    //     I_neg[i] = (outtrunc_neg[i] + arith_wrap_[i]) & mask_s;
+    // }
 
-    // uint64_t *LUT_index = new uint64_t[dim];
-    select_share(Drelu, I_pos, I_neg, outtrunc, dim, s);
+    // // uint64_t *LUT_index = new uint64_t[dim];
+    // select_share(Drelu, I_pos, I_neg, outtrunc, dim, s);
 
-    uint64_t STEP5_comm_end = iopack->get_comm();
+    // uint64_t STEP5_comm_end = iopack->get_comm();
 
-    std::cout << std::dec << "outtrunc = " << outtrunc[0] << std::endl;
+    // std::cout << std::dec << "outtrunc = " << outtrunc[0] << std::endl;
     // step7 check
 
-    ////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
     uint64_t *EMUX_output_x1_h = new uint64_t[dim];
     for (int i = 0; i < dim; i++)
     {
         // std::cout << "outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
         EMUX_output_x1_h[i] = EMUX_output_x1[i] & mask_h;
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
+    uint64_t STEP5_comm_start = iopack->get_comm();
+        if (party == sci::ALICE)
+    {
+        trunc_oracle->truncate_and_reduce(dim, EMUX_output_x1_h, outtrunc, h - s, h); // shift=h-s,hypothesis s=7  truncate就是为了分组，截断后7位，为了前8位可以映射到对应的table
+                                                                           // std::cout << "outtrunc[" << 0 << "] = " << outtrunc[0] << std::endl;
+    }
+    else
+    {
+        trunc_oracle->truncate_and_reduce(dim, EMUX_output_x1_h, outtrunc, h - s, h); // shift=h-s,hypothesis s=7,outtrunc是0-127
+                                                                           // std::cout << "outtrunc[" << 0 << "] = " << outtrunc[0] << std::endl; // outtrunc是<i>，范围是0-127
+    }
+    uint64_t STEP5_comm_end = iopack->get_comm();
     std::cout << "\n=========STEP6 LookUp Table   ===========" << std::endl;
     // 重跑一个有256个的
     // std::vector<std::vector<uint64_t>> data = {{137438953471, 0}, {137438953470, 0}, {137438953470, 0}, {137438953470, 0}, {137438953470, 0}, {137438953469, 0}, {137438953469, 0}, {137438953468, 0}, {137438953468, 0}, {137438953467, 0}, {137438953467, 0}, {137438953466, 1}, {137438953465, 1}, {137438953465, 1}, {137438953464, 2}, {137438953463, 2}, {137438953462, 3}, {137438953460, 3}, {137438953459, 4}, {137438953458, 5}, {137438953456, 6}, {137438953454, 7}, {137438953453, 8}, {137438953450, 10}, {137438953448, 11}, {137438953446, 13}, {137438953443, 15}, {137438953440, 18}, {137438953437, 20}, {137438953434, 23}, {137438953431, 27}, {137438953427, 30}, {137438953423, 34}, {137438953418, 39}, {137438953414, 44}, {137438953409, 49}, {137438953404, 55}, {137438953398, 61}, {137438953392, 68}, {137438953386, 76}, {137438953379, 84}, {137438953372, 93}, {137438953365, 103}, {137438953357, 114}, {137438953349, 125}, {137438953340, 137}, {137438953331, 150}, {137438953322, 163}, {137438953312, 178}, {137438953302, 193}, {137438953292, 210}, {137438953281, 227}, {137438953269, 245}, {137438953258, 265}, {137438953246, 285}, {137438953234, 306}, {137438953221, 328}, {137438953208, 351}, {137438953195, 375}, {137438953182, 399}, {137438953168, 424}, {137438953155, 450}, {137438953141, 477}, {137438953127, 504}, {137438953113, 532}, {137438953099, 560}, {137438953086, 588}, {137438953072, 616}, {137438953059, 644}, {137438953046, 672}, {137438953033, 700}, {137438953021, 727}, {137438953010, 753}, {137438952999, 778}, {137438952988, 801}, {137438952979, 823}, {137438952970, 844}, {137438952963, 862}, {137438952956, 878}, {137438952951, 891}, {137438952947, 900}, {137438952945, 907}, {137438952944, 910}, {137438952944, 908}, {137438952947, 902}, {137438952951, 891}, {137438952957, 874}, {137438952965, 852}, {137438952975, 824}, {137438952988, 789}, {137438953003, 747}, {137438953020, 697}, {137438953040, 640}, {137438953063, 574}, {137438953088, 500}, {137438953116, 416}, {137438953147, 324}, {137438953181, 221}, {137438953218, 108}, {137438953258, 137438953457}, {137438953301, 137438953323}, {137438953347, 137438953178}, {137438953396, 137438953021}, {137438953448, 137438952853}, {31, 137438952673}, {90, 137438952482}, {151, 137438952278}, {216, 137438952062}, {283, 137438951834}, {354, 137438951594}, {427, 137438951342}, {503, 137438951078}, {582, 137438950803}, {663, 137438950515}, {747, 137438950216}, {834, 137438949906}, {922, 137438949586}, {1013, 137438949255}, {1105, 137438948913}, {1199, 137438948563}, {1295, 137438948203}, {1393, 137438947835}, {1491, 137438947459}, {1591, 137438947076}, {1692, 137438946686}, {1793, 137438946290}, {1895, 137438945889}, {1997, 137438945484}, {2099, 137438945075}, {2201, 137438944664}, {2303, 137438944250}, {2404, 137438943836}, {2505, 137438943421}, {2605, 137438943006}, {2703, 137438942593}, {2801, 137438942182}, {2897, 137438941775}, {2991, 137438941371}, {3083, 137438940972}, {3174, 137438940578}, {3262, 137438940191}, {3349, 137438939811}, {3433, 137438939439}, {3514, 137438939075}, {3593, 137438938720}, {3669, 137438938376}, {3742, 137438938041}, {3813, 137438937717}, {3880, 137438937405}, {3945, 137438937105}, {4006, 137438936816}, {4065, 137438936541}, {4120, 137438936278}, {4172, 137438936028}, {4221, 137438935792}, {4267, 137438935569}, {4310, 137438935360}, {4350, 137438935164}, {4387, 137438934982}, {4421, 137438934814}, {4452, 137438934659}, {4480, 137438934518}, {4505, 137438934390}, {4528, 137438934275}, {4548, 137438934172}, {4565, 137438934083}, {4580, 137438934005}, {4593, 137438933939}, {4603, 137438933885}, {4611, 137438933842}, {4617, 137438933809}, {4621, 137438933787}, {4624, 137438933774}, {4624, 137438933771}, {4623, 137438933777}, {4621, 137438933791}, {4617, 137438933812}, {4612, 137438933841}, {4605, 137438933877}, {4598, 137438933920}, {4589, 137438933968}, {4580, 137438934021}, {4569, 137438934080}, {4558, 137438934142}, {4547, 137438934209}, {4535, 137438934279}, {4522, 137438934352}, {4509, 137438934428}, {4496, 137438934506}, {4482, 137438934585}, {4469, 137438934667}, {4455, 137438934749}, {4441, 137438934832}, {4427, 137438934915}, {4413, 137438934998}, {4400, 137438935082}, {4386, 137438935164}, {4373, 137438935246}, {4360, 137438935328}, {4347, 137438935408}, {4334, 137438935486}, {4322, 137438935563}, {4310, 137438935639}, {4299, 137438935713}, {4287, 137438935785}, {4276, 137438935854}, {4266, 137438935922}, {4256, 137438935988}, {4246, 137438936051}, {4237, 137438936112}, {4228, 137438936171}, {4219, 137438936227}, {4211, 137438936281}, {4203, 137438936333}, {4196, 137438936383}, {4189, 137438936430}, {4182, 137438936475}, {4176, 137438936517}, {4170, 137438936558}, {4164, 137438936596}, {4159, 137438936632}, {4154, 137438936666}, {4150, 137438936698}, {4145, 137438936729}, {4141, 137438936757}, {4137, 137438936784}, {4134, 137438936808}, {4131, 137438936832}, {4128, 137438936853}, {4125, 137438936873}, {4122, 137438936892}, {4120, 137438936909}, {4118, 137438936925}, {4115, 137438936940}, {4114, 137438936954}, {4112, 137438936967}, {4110, 137438936978}, {4109, 137438936989}, {4108, 137438936999}, {4106, 137438937008}, {4105, 137438937016}, {4104, 137438937023}, {4103, 137438937030}, {4103, 137438937036}, {4102, 137438937042}, {4101, 137438937047}, {4101, 137438937051}, {4100, 137438937055}, {4100, 137438937059}, {4099, 137438937062}, {4099, 137438937065}, {4098, 137438937068}, {4098, 137438937070}, {4098, 137438937073}, {4098, 137438937074}, {4097, 137438937076}};
@@ -425,20 +424,7 @@ int main(int argc, char **argv)
             // std::cout << "i = " << i << ", j = " << j << ", data = " << data[j][i] << std::endl;
         }
     }
-
-    // for (int i = 0; i < dim; ++i) {
-    //     std::cout << "spec[" << i << "]: ";
-    //     for (int j = 0; j < N; ++j) {
-    //         std::cout << spec[i][j] << " "; // Output the value in decimal format
-    //     }
-    //     std::cout << std::endl; // Move to the next line after each row
-    // }
     uint64_t *outtrunc1 = new uint64_t[dim];
-    // for (size_t i = 0; i < dim; i++)
-    // {
-    //     outtrunc1[i] = 0;
-    // }
-
     uint64_t *outtrunc_a = new uint64_t[dim];
     if (party == ALICE)
     {
@@ -550,26 +536,7 @@ int main(int argc, char **argv)
         }
     }
     uint64_t STEP7_comm_end = iopack->get_comm();
-    /////////////////////////
-    // if (party == ALICE)
-    // {
-    //     iopack->io->send_data(outax, dim * sizeof(uint64_t));
-    // }
-    // else
-    // {
-    //     uint64_t *recv_outax = new uint64_t[dim];
-    //     iopack->io->recv_data(recv_outax, dim * sizeof(uint64_t));
 
-    //     for (int i = 0; i < dim; i++)
-    //     {
-    //         std::cout << "outax[" << i << "] =  " << (outax[i] & mask_lla) << std::endl;
-    //         std::cout << "recv_outax[" << i << "] =  " << (recv_outax[i] & mask_lla) << std::endl;
-    //         std::cout << "total outax[" << i << "] =  " << ((outax[i] + recv_outax[i]) & mask_lla) << std::endl;
-    //     }
-    //     // std::cout << "total outax =  " << ((outax[0] + recv_outax[0]) & mask_lah1) << std::endl;
-    // }
-
-    // }
 
     std::cout << "\n=========STEP8 ax truncate from l+la to l+1  ===========" << std::endl; // 跟协议对不上，这里直接得到了axl
                                                                                             //////////////////////////////////////////////////////// general版本：直接截取，不用截断协议；高精度版本：使用截断协议
@@ -644,20 +611,6 @@ int main(int argc, char **argv)
 
     std::cout << "b_SExt[" << 0 << "] = " << b_SExt[0] << std::endl;
 
-    // if (party == ALICE)
-    // {
-    //     iopack->io->send_data(b_SExt, dim * sizeof(uint64_t));
-    // }
-    // else
-    // {
-    //     uint64_t *recv_b_SExt = new uint64_t[dim];
-    //     iopack->io->recv_data(recv_b_SExt, dim * sizeof(uint64_t));
-    //     for (int i = 0; i < dim; i++)
-    //     {
-    //         std::cout << "total b_SExt[" << i << "] =  " << ((b_SExt[i] + recv_b_SExt[i]) & mask_bwL) << std::endl;
-    //     }
-    // }
-
     std::cout << "\n=========STEP12 Caculate z=ax+b   ===========" << std::endl;
     uint64_t *z = new uint64_t[dim];
 
@@ -670,23 +623,6 @@ int main(int argc, char **argv)
     uint64_t mask_d = (f + 1 == 64 ? -1 : ((1ULL << f + 1) - 1));
     for (int i = 0; i < dim; i++)
         z[i] = ((outax[i] + b_SExt[i] * static_cast<uint64_t>(std::pow(2, f - lb + 1))) & mask_bwL);
-
-    // for (int i = 0; i < dim; i++)
-    // {
-    //     std::cout << "z[" << i << "] = " << z[i] << std::endl;
-    // }
-    // std::cout << "z[" << 0 << "] = " << z[0] << std::endl;
-
-    // if (party == ALICE)
-    // {
-    //     iopack->io->send_data(z, dim * sizeof(uint64_t));
-    // }
-    // else
-    // {
-    //     uint64_t *recv_z = new uint64_t[dim];
-    //     iopack->io->recv_data(recv_z, dim * sizeof(uint64_t));
-    //     std::cout << "total recv_z =  " << ((z[0] + recv_z[0]) & mask_bwL) << std::endl;
-    // }
 
     std::cout << "\n=========STEP14 Drelu |x|-a  to learn b' ===========" << std::endl;
     // 去掉13，修改14
@@ -1043,7 +979,7 @@ int main(int argc, char **argv)
 
     cout << "STEP3 MSBnew Bytes Sent: " << (STEP3_comm_end - STEP3_comm_start) / dim * 8 << " bits" << endl;
     cout << "STEP4 Select_share Bytes Sent: " << (STEP4_comm_end - STEP4_comm_start) / dim * 8 << " bits" << endl;
-    cout << "STEP5 B2A and SS Bytes Sent: " << (STEP5_comm_end - STEP5_comm_start) / dim * 8 << " bits" << endl;
+    cout << "STEP5 TR Bytes Sent: " << (STEP5_comm_end - STEP5_comm_start) / dim * 8 << " bits" << endl;
     cout << "STEP6 LUT*2 Bytes Sent: " << (STEP6_comm_end - STEP6_comm_start) / dim * 8 << " bits" << endl;
     cout << "STEP7 hadamard_product Bytes Sent: " << (STEP7_comm_end - STEP7_comm_start) / dim * 8 << " bits" << endl;
     cout << "STEP8 truncate_and_reduce Bytes Sent: " << (STEP8_comm_end - STEP8_comm_start) / dim * 8 << " bits" << endl;
