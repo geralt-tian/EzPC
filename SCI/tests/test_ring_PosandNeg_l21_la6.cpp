@@ -158,7 +158,7 @@ int main(int argc, char **argv)
 {
     ArgMapping amap;
     int dim = 1;
-    uint64_t acc = 2;
+    uint64_t acc = 1;
     uint64_t init_input = 0;
     uint64_t step_size = 1;
     uint64_t correct = 1;

@@ -55,7 +55,6 @@ uint64_t s = 6;
 Truncation *trunc_oracle;
 AuxProtocols *aux;
 
-
 //////////////////////
 // 初始化
 ///////////////////////////////
@@ -63,7 +62,7 @@ AuxProtocols *aux;
 int main(int argc, char **argv)
 {
     ArgMapping amap;
-    int dim = 1;
+    int dim = 1000;
     uint8_t acc = 1;
     uint64_t init_input = 0;
     uint64_t step_size = 2;
@@ -105,24 +104,65 @@ int main(int argc, char **argv)
     uint8_t *wrap = new uint8_t[dim];
     uint64_t STEP3_comm_start = iopack->get_comm();
     // Drelu = MSB , Alice ^1
-    int cmpbwl = bwL - 1; 
-    if (party == ALICE)
+    int cmpbwl[] = {6, 7, 8, 10, 11, 20};
+
+    for (int i = 0; i < 6; i++)
     {
-        // prod->aux->MSB(inA, msbA, dim, bwL);
-        prod->aux->mill->comparetest(msbA, wrap,inA, dim, cmpbwl, true,false,7);
+        int bitwidth = cmpbwl[i];
+
+        for (int j = 0; j < 6; j++)
+        {
+            uint64_t STEP3_comm_start = iopack->get_comm();
+            if (party == ALICE)
+            {
+                // prod->aux->MSB(inA, msbA, dim, bwL);
+                prod->aux->mill->compare(msbA, inA, dim, bitwidth, true, false, j + 3);
+                // uint64_t STEP3_comm_end = iopack->get_comm();
+            }
+            else
+            {
+                // prod->aux->MSB(inB, msbB, dim, bwL);
+                prod->aux->mill->compare(msbA, inB, dim, bitwidth, true, false, j + 3);
+            }
+            uint64_t STEP3_comm_end = iopack->get_comm();
+            if (party == ALICE)
+            {
+                double Total_MSBytes_ALICE = static_cast<double>(STEP3_comm_end - STEP3_comm_start) / dim * 8;
+                iopack->io->send_data(&Total_MSBytes_ALICE, sizeof(double));
+            }
+            else
+            {
+                double recv_Total_MSBytes_ALICE;
+                iopack->io->recv_data(&recv_Total_MSBytes_ALICE, sizeof(double));
+
+                double Total_MSBytes_BOB = static_cast<double>(STEP3_comm_end - STEP3_comm_start) / dim * 8;
+                double Total_MSBytes = Total_MSBytes_BOB + recv_Total_MSBytes_ALICE;
+                std::ofstream csvFile("/home/zhaoqian/EzPC/SCI/tests/auto_compare_test_output.csv", std::ios::app);
+
+                if (!csvFile.is_open())
+                {
+                    std::cerr << "无法打开文件用于写入: auto_compare_test_output.csv" << std::endl;
+                    return 1; // 或其他适当的错误处理
+                }
+
+                // 仅在文件为空时写入列名
+                csvFile.seekp(0, std::ios::end);
+                if (csvFile.tellp() == 0)
+                {
+                    csvFile << "bitwidth, M , Total_MSBytes\n";
+                }
+                csvFile << bitwidth << ","
+                        << j + 3 << ","
+                        << Total_MSBytes
+                        << "\n";
+            }
+            // std::cout << "STEP3_communication = " << (STEP3_comm_end - STEP3_comm_start) / dim * 8 << " bytes" << std::endl;
+        }
     }
-    else
-    {
-        // prod->aux->MSB(inB, msbB, dim, bwL);
-        prod->aux->mill->comparetest(msbA, wrap,inB, dim, cmpbwl, true,false,7);
-    }
-    for (int i = 0; i < dim; i++)
-    {
-        std::cout << "wrap[" << i << "] = " << static_cast<int>(wrap[i]) << std::endl;
-    }
-    uint64_t STEP3_comm_end = iopack->get_comm();
+
+    // uint64_t STEP3_comm_end = iopack->get_comm();
     // mill->compare(msbA, inA, dim, bwL, true); // computing greater_than
-    std::cout << "STEP3_communication = " << (STEP3_comm_end - STEP3_comm_start) << " bytes" << std::endl;
+
     delete[] inA;
     delete[] inB;
     delete[] outax;

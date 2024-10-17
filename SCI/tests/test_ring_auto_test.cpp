@@ -58,9 +58,9 @@ uint64_t mask_h = (h == 64) ? ~0ULL : (1ULL << h) - 1;
 // s = 5(低精度)，s = 6(高)， s = 7 与 s = 6 误差相差不大
 Truncation *trunc_oracle;
 AuxProtocols *aux;
-int dim = 16384;
+int dim = 14336;
 uint64_t acc = 2;
-uint64_t init_input = 2088960;
+uint64_t init_input = 2089984;
 uint64_t step_size = 1;
 uint64_t correct = 1;
 // double calculate_GELU(uint64_t value)
@@ -805,11 +805,20 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     if (party == ALICE)
     {
         iopack->io->send_data(y, dim * sizeof(uint64_t));
+        double Total_MSBytes_ALICE = static_cast<double>(comm_end - comm_start) / dim * 8;
+        iopack->io->send_data(&Total_MSBytes_ALICE, sizeof(double));
+        // double *Total_MSBytes_ALICE = new double[1];
+        // Total_MSBytes_ALICE[0] = (comm_end - comm_start) / dim * 8;
+        // iopack->io->send_data(Total_MSBytes_ALICE, dim * sizeof(double));
     }
     else
     {
         uint64_t *recv_y = new uint64_t[dim];
+        // double *recv_Total_MSBytes_ALICE = new double[1];
         iopack->io->recv_data(recv_y, dim * sizeof(uint64_t));
+                double recv_Total_MSBytes_ALICE;
+        iopack->io->recv_data(&recv_Total_MSBytes_ALICE, sizeof(double));
+        // iopack->io->recv_data(recv_Total_MSBytes_ALICE, sizeof(double));
         // std::cout << "total y = y0 + y1 =  " << ((y[0] + recv_y[0]) & mask_bwL) << ", real num: " << (double)decode_ring((y[0] + recv_y[0])&mask_bwL,37) / f_pow << std::endl;
 
         // std::cout << "ax +b =  " << (((inA[0] + inB[0]) * a_bob[0] + b_bob[0]) & mask_bwL) << std::endl;
@@ -853,7 +862,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         // 设置标题和标签
         // plt::title("Simple Line Plot");
         // plt::xlabel("x-axis");
-        std::ofstream csvFile("auto_test_output.csv", std::ios::app);
+        std::ofstream csvFile("/home/zhaoqian/EzPC/SCI/tests/auto_test_output.csv", std::ios::app);
 
         if (!csvFile.is_open())
         {
@@ -893,7 +902,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
                 << s << ","
                 << average << ","
                 << max_val << ","
-                << Total_MSBytes_Bob << ","
+                << Total_MSBytes_Bob+recv_Total_MSBytes_ALICE<< ","
                 << Total_time_ms
                 << "\n";
 
