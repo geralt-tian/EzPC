@@ -41,18 +41,20 @@ MultMode mode = MultMode::None; // 乘法模式
 
 // uint64_t la = 14;//la=5 f=5,la=14,f=12
 uint64_t lb = 13;
-uint64_t mask_lb = (lb == 64 ? -1 : ((1ULL << lb) - 1));
-// uint64_t f = 12;
 uint64_t la = 13; // la=5 f=5,la=14,f=12
 uint64_t f = 12;
+uint64_t s = 7;
+
+
+
 uint64_t h = f + 2;
 uint64_t Tk = f - 1;
 uint64_t alpha = 3.5 * pow(2, f);
-
+uint64_t mask_lb = (lb == 64 ? -1 : ((1ULL << lb) - 1));
 uint64_t mask_l_Tk = (bwL == 64 ? -1 : ((1ULL << (bwL - Tk)) - 1));
 uint64_t mask_lah1 = ((la + h + 1) == 64 ? -1 : ((1ULL << (la + h + 1)) - 1));
 uint64_t mask_lla = ((la + bwL) == 64 ? -1 : ((1ULL << (la + bwL)) - 1));
-uint64_t s = 7;
+// uint64_t s = 7;
 uint64_t mask_s = ((s) == 64 ? -1 : ((1ULL << (s)) - 1));
 uint64_t mask_h = (h == 64) ? ~0ULL : (1ULL << h) - 1;
 // s = 5(低精度)，s = 6(高)， s = 7 与 s = 6 误差相差不大

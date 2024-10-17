@@ -44,6 +44,7 @@ add_test_OT(clear_l21_la6)
 add_test_OT(PosandNeg_l21_la6)
 add_test_OT(PosandNeg_l21_la6_test)
 add_test_OT(l21_la12)
+add_test_OT(auto_test)
 add_test_OT(million)
 
 add_test_HE(relu)
