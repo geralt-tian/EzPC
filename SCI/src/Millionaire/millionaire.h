@@ -279,7 +279,211 @@ public:
     delete[] leaf_res_eq;
   }
 
+    void compare_model(uint8_t *res, uint64_t *data, int num_cmps, int bitlength,
+               bool greater_than = true, bool equality = false,
+               int radix_base = MILL_PARAM) {
+    configure(bitlength, radix_base);
 
+    if (bitlength <= beta) {
+      uint8_t N = 1 << bitlength;
+      uint8_t mask = N - 1;
+      if (party == sci::ALICE) {
+        sci::PRG128 prg;
+        prg.random_data(res, num_cmps * sizeof(uint8_t));
+        uint8_t **leaf_messages = new uint8_t *[num_cmps];
+        for (int i = 0; i < num_cmps; i++) {
+          res[i] &= 1;
+          leaf_messages[i] = new uint8_t[N];
+          for (int j = 0; j < N; j++) {
+            if (greater_than) {
+              leaf_messages[i][j] = ((uint8_t(data[i] & mask) > j) ^ res[i]);
+            } else {
+              leaf_messages[i][j] = ((uint8_t(data[i] & mask) < j) ^ res[i]);
+            }
+          }
+        }
+        if (bitlength > 1) {
+          otpack->kkot[bitlength - 1]->send(leaf_messages, num_cmps, 1);
+        } else {
+          otpack->iknp_straight->send(leaf_messages, num_cmps, 1);
+        }
+
+        for (int i = 0; i < num_cmps; i++)
+          delete[] leaf_messages[i];
+        delete[] leaf_messages;
+      } else { // party == BOB
+        uint8_t *choice = new uint8_t[num_cmps];
+        for (int i = 0; i < num_cmps; i++) {
+          choice[i] = data[i] & mask;
+        }
+        if (bitlength > 1) {
+          otpack->kkot[bitlength - 1]->recv(res, choice, num_cmps, 1);
+        } else {
+          otpack->iknp_straight->recv(res, choice, num_cmps, 1);
+        }
+
+        delete[] choice;
+      }
+      return;
+    }
+
+    int old_num_cmps = num_cmps;
+    // num_cmps should be a multiple of 8
+    num_cmps = ceil(num_cmps / 8.0) * 8;
+
+    uint64_t *data_ext;
+    if (old_num_cmps == num_cmps)
+      data_ext = data;
+    else {
+      data_ext = new uint64_t[num_cmps];
+      memcpy(data_ext, data, old_num_cmps * sizeof(uint64_t));
+      memset(data_ext + old_num_cmps, 0,
+             (num_cmps - old_num_cmps) * sizeof(uint64_t));
+    }
+
+    uint8_t *digits;       // num_digits * num_cmps
+    uint8_t *leaf_res_cmp; // num_digits * num_cmps
+    uint8_t *leaf_res_eq;  // num_digits * num_cmps
+
+    digits = new uint8_t[num_digits * num_cmps];
+    leaf_res_cmp = new uint8_t[num_digits * num_cmps];
+    leaf_res_eq = new uint8_t[num_digits * num_cmps];
+
+    // Extract radix-digits from data
+    for (int i = 0; i < num_digits; i++) // Stored from LSB to MSB
+      for (int j = 0; j < num_cmps; j++)
+        if ((i == num_digits - 1) && (r != 0))
+          digits[i * num_cmps + j] =
+              (uint8_t)(data_ext[j] >> i * beta) & mask_r;
+        else
+          digits[i * num_cmps + j] =
+              (uint8_t)(data_ext[j] >> i * beta) & mask_beta;
+
+    if (party == sci::ALICE) {
+      uint8_t *
+          *leaf_ot_messages; // (num_digits * num_cmps) X beta_pow (=2^beta)
+      leaf_ot_messages = new uint8_t *[num_digits * num_cmps];
+      for (int i = 0; i < num_digits * num_cmps; i++)
+        leaf_ot_messages[i] = new uint8_t[beta_pow];
+
+      // Set Leaf OT messages
+      triple_gen->prg->random_bool((bool *)leaf_res_cmp, num_digits * num_cmps);
+      triple_gen->prg->random_bool((bool *)leaf_res_eq, num_digits * num_cmps);
+      for (int i = 0; i < num_digits; i++) {
+        for (int j = 0; j < num_cmps; j++) {
+          if (i == 0) {
+            set_leaf_ot_messages(leaf_ot_messages[i * num_cmps + j],
+                                 digits[i * num_cmps + j], beta_pow,
+                                 leaf_res_cmp[i * num_cmps + j], 0,
+                                 greater_than, false);
+          } else if (i == (num_digits - 1) && (r > 0)) {
+#ifdef WAN_EXEC
+            set_leaf_ot_messages(leaf_ot_messages[i * num_cmps + j],
+                                 digits[i * num_cmps + j], beta_pow,
+                                 leaf_res_cmp[i * num_cmps + j],
+                                 leaf_res_eq[i * num_cmps + j], greater_than);
+#else
+            set_leaf_ot_messages(leaf_ot_messages[i * num_cmps + j],
+                                 digits[i * num_cmps + j], 1 << r,
+                                 leaf_res_cmp[i * num_cmps + j],
+                                 leaf_res_eq[i * num_cmps + j], greater_than);
+#endif
+          } else {
+            set_leaf_ot_messages(leaf_ot_messages[i * num_cmps + j],
+                                 digits[i * num_cmps + j], beta_pow,
+                                 leaf_res_cmp[i * num_cmps + j],
+                                 leaf_res_eq[i * num_cmps + j], greater_than);
+          }
+        }
+      }
+
+      // Perform Leaf OTs
+#ifdef WAN_EXEC
+      // otpack->kkot_beta->send(leaf_ot_messages, num_cmps*(num_digits), 2);
+      otpack->kkot[beta - 1]->send(leaf_ot_messages, num_cmps * (num_digits),
+                                   2);
+#else
+      // otpack->kkot_beta->send(leaf_ot_messages, num_cmps, 1);
+      otpack->kkot[beta - 1]->send(leaf_ot_messages, num_cmps, 1);
+      if (r == 1) {
+        // otpack->kkot_beta->send(leaf_ot_messages+num_cmps,
+        // num_cmps*(num_digits-2), 2);
+        otpack->kkot[beta - 1]->send(leaf_ot_messages + num_cmps,
+                                     num_cmps * (num_digits - 2), 2);
+        otpack->iknp_straight->send(
+            leaf_ot_messages + num_cmps * (num_digits - 1), num_cmps, 2);
+      } else if (r != 0) {
+        // otpack->kkot_beta->send(leaf_ot_messages+num_cmps,
+        // num_cmps*(num_digits-2), 2);
+        otpack->kkot[beta - 1]->send(leaf_ot_messages + num_cmps,
+                                     num_cmps * (num_digits - 2), 2);
+        otpack->kkot[r - 1]->send(
+            leaf_ot_messages + num_cmps * (num_digits - 1), num_cmps, 2);
+      } else {
+        // otpack->kkot_beta->send(leaf_ot_messages+num_cmps,
+        // num_cmps*(num_digits-1), 2);
+        otpack->kkot[beta - 1]->send(leaf_ot_messages + num_cmps,
+                                     num_cmps * (num_digits - 1), 2);
+      }
+#endif
+      // Cleanup
+      for (int i = 0; i < num_digits * num_cmps; i++)
+        delete[] leaf_ot_messages[i];
+      delete[] leaf_ot_messages;
+    } else // party = sci::BOB
+    {
+      // Perform Leaf OTs
+#ifdef WAN_EXEC
+      // otpack->kkot_beta->recv(leaf_res_cmp, digits, num_cmps*(num_digits),
+      // 2);
+      otpack->kkot[beta - 1]->recv(leaf_res_cmp, digits,
+                                   num_cmps * (num_digits), 2);
+#else
+      // otpack->kkot_beta->recv(leaf_res_cmp, digits, num_cmps, 1);
+      otpack->kkot[beta - 1]->recv(leaf_res_cmp, digits, num_cmps, 1);
+      if (r == 1) {
+        // otpack->kkot_beta->recv(leaf_res_cmp+num_cmps, digits+num_cmps,
+        // num_cmps*(num_digits-2), 2);
+        otpack->kkot[beta - 1]->recv(leaf_res_cmp + num_cmps, digits + num_cmps,
+                                     num_cmps * (num_digits - 2), 2);
+        otpack->iknp_straight->recv(leaf_res_cmp + num_cmps * (num_digits - 1),
+                                    digits + num_cmps * (num_digits - 1),
+                                    num_cmps, 2);
+      } else if (r != 0) {
+        // otpack->kkot_beta->recv(leaf_res_cmp+num_cmps, digits+num_cmps,
+        // num_cmps*(num_digits-2), 2);
+        otpack->kkot[beta - 1]->recv(leaf_res_cmp + num_cmps, digits + num_cmps,
+                                     num_cmps * (num_digits - 2), 2);
+        otpack->kkot[r - 1]->recv(leaf_res_cmp + num_cmps * (num_digits - 1),
+                                  digits + num_cmps * (num_digits - 1),
+                                  num_cmps, 2);
+      } else {
+        // otpack->kkot_beta->recv(leaf_res_cmp+num_cmps, digits+num_cmps,
+        // num_cmps*(num_digits-1), 2);
+        otpack->kkot[beta - 1]->recv(leaf_res_cmp + num_cmps, digits + num_cmps,
+                                     num_cmps * (num_digits - 1), 2);
+      }
+#endif
+
+      // Extract equality result from leaf_res_cmp
+      for (int i = num_cmps; i < num_digits * num_cmps; i++) {
+        leaf_res_eq[i] = leaf_res_cmp[i] & 1;
+        leaf_res_cmp[i] >>= 1;
+      }
+    }
+
+    traverse_and_compute_ANDs(num_cmps, leaf_res_eq, leaf_res_cmp);
+
+    for (int i = 0; i < old_num_cmps; i++)
+      res[i] = leaf_res_cmp[i];
+
+    // Cleanup
+    if (old_num_cmps != num_cmps)
+      delete[] data_ext;
+    delete[] digits;
+    delete[] leaf_res_cmp;
+    delete[] leaf_res_eq;
+  }
 
   void comparetest(uint8_t *res,uint8_t *reswrap, uint64_t *data, int num_cmps, int bitlength,
                bool greater_than = true, bool equality = false,

@@ -62,7 +62,7 @@ AuxProtocols *aux;
 int main(int argc, char **argv)
 {
     ArgMapping amap;
-    int dim = 1000;
+    int dim = 10000;
     uint8_t acc = 1;
     uint64_t init_input = 0;
     uint64_t step_size = 2;
@@ -82,7 +82,6 @@ int main(int argc, char **argv)
     otpack = new OTPack(iopack, party);
 
     uint64_t comm_start = iopack->get_comm();
-    auto time_start = chrono::high_resolution_clock::now();
 
     prod = new LinearOT(party, iopack, otpack);
 
@@ -104,9 +103,11 @@ int main(int argc, char **argv)
     uint8_t *wrap = new uint8_t[dim];
     uint64_t STEP3_comm_start = iopack->get_comm();
     // Drelu = MSB , Alice ^1
-    int cmpbwl[] = {6, 7, 8, 10, 11, 20};
-
-    for (int i = 0; i < 6; i++)
+    int cmpbwl[] = {6, 7, 8, 9, 10, 11, 20};
+    // auto Total_time;
+    int flag = 0;
+    auto Total_time = 0.2;
+    for (int i = 0; i < 7; i++)
     {
         int bitwidth = cmpbwl[i];
 
@@ -116,15 +117,21 @@ int main(int argc, char **argv)
             if (party == ALICE)
             {
                 // prod->aux->MSB(inA, msbA, dim, bwL);
+                flag++;
                 prod->aux->mill->compare(msbA, inA, dim, bitwidth, true, false, j + 3);
                 // uint64_t STEP3_comm_end = iopack->get_comm();
             }
             else
             {
+
                 // prod->aux->MSB(inB, msbB, dim, bwL);
+                auto time_start = chrono::high_resolution_clock::now();
                 prod->aux->mill->compare(msbA, inB, dim, bitwidth, true, false, j + 3);
+                auto time_end = chrono::high_resolution_clock::now();
+                Total_time = chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
             }
             uint64_t STEP3_comm_end = iopack->get_comm();
+
             if (party == ALICE)
             {
                 double Total_MSBytes_ALICE = static_cast<double>(STEP3_comm_end - STEP3_comm_start) / dim * 8;
@@ -137,6 +144,7 @@ int main(int argc, char **argv)
 
                 double Total_MSBytes_BOB = static_cast<double>(STEP3_comm_end - STEP3_comm_start) / dim * 8;
                 double Total_MSBytes = Total_MSBytes_BOB + recv_Total_MSBytes_ALICE;
+
                 std::ofstream csvFile("/home/zhaoqian/EzPC/SCI/tests/auto_compare_test_output.csv", std::ios::app);
 
                 if (!csvFile.is_open())
@@ -149,16 +157,21 @@ int main(int argc, char **argv)
                 csvFile.seekp(0, std::ios::end);
                 if (csvFile.tellp() == 0)
                 {
-                    csvFile << "bitwidth, M , Total_MSBytes\n";
+                    csvFile << "bitwidth, M , Total_MSBytes, time\n";
                 }
                 csvFile << bitwidth << ","
                         << j + 3 << ","
-                        << Total_MSBytes
+                        << Total_MSBytes << ","
+                        << Total_time
                         << "\n";
             }
             // std::cout << "STEP3_communication = " << (STEP3_comm_end - STEP3_comm_start) / dim * 8 << " bytes" << std::endl;
         }
     }
+
+    // cout << "Total time: "
+    //      << chrono::duration_cast<chrono::milliseconds>(time_end - time_start).count()
+    //      << " ms" << endl;
 
     // uint64_t STEP3_comm_end = iopack->get_comm();
     // mill->compare(msbA, inA, dim, bwL, true); // computing greater_than

@@ -56,7 +56,39 @@ void AuxProtocols::wrap_computation(uint64_t *x, uint8_t *y, int32_t size,
     else
       tmp_x[i] = (mask - x[i]) & mask; // 2^{bw_x} - 1 - x[i]
   }
-  mill->compare(y, tmp_x, size, bw_x, true); // computing greater_than
+
+switch (bw_x)
+  {
+  case 6:
+    mill->compare(y, tmp_x, size, bw_x, true, false, 6); // computing greater_than
+    break;
+  case 7:                                                // 7-bit
+    mill->compare(y, tmp_x, size, bw_x, true, false, 7); // computing greater_than
+    break;
+  case 8:                                                // 8-bit
+    mill->compare(y, tmp_x, size, bw_x, true, false, 7); // computing greater_than
+    break;
+  case 9:                                                //
+    mill->compare(y, tmp_x, size, bw_x, true, false, 5); // computing greater_than
+    break;
+  case 10:                                               //
+    mill->compare(y, tmp_x, size, bw_x, true, false, 5); // computing greater_than
+    break;
+  case 11:                                               //
+    mill->compare(y, tmp_x, size, bw_x, true, false, 6); // computing greater_than
+    break;
+  case 20:                                               //
+    mill->compare(y, tmp_x, size, bw_x, true, false, 7); // computing greater_than
+    break;
+  default:
+    mill->compare(y, tmp_x, size, bw_x, true); // computing greater_than
+    break;
+  }
+
+
+
+
+    // mill->compare(y, tmp_x, size, bw_x, true); // computing greater_than
 
   delete[] tmp_x;
 }
@@ -328,7 +360,34 @@ void AuxProtocols::MSBsec(uint64_t *x, uint8_t *msb_x, int32_t size,
       tmp_x[i] = (shift_mask - tmp_x[i]) & shift_mask;
   }
 
-  mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 5); // computing greater_than
+  // mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 5); // computing greater_than
+    switch (bw_x)
+  {
+  case 6:
+    mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 6); // computing greater_than
+    break;
+  case 7:                                                // 7-bit
+    mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 7); // computing greater_than
+    break;
+  case 8:                                                // 8-bit
+    mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 8); // computing greater_than
+    break;
+  case 9:                                                //
+    mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 5); // computing greater_than
+    break;
+  case 10:                                               //
+    mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 5); // computing greater_than
+    break;
+  case 11:                                               //
+    mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 6); // computing greater_than
+    break;
+  case 20:                                               //
+    mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 7); // computing greater_than
+    break;
+  default:
+    mill->compare(msb_x, tmp_x, size, bw_x - 1, true); // computing greater_than
+    break;
+  }
 
   for (int i = 0; i < size; i++)
   {
@@ -356,7 +415,33 @@ void AuxProtocols::MSBnew(uint64_t *x, uint8_t *msb_x, uint8_t *reswrap, int32_t
       tmp_x[i] = (shift_mask - tmp_x[i]) & shift_mask;
   }
 
-  mill->comparetest(msb_x, reswrap, tmp_x, size, bw_x - 1, true, false, 7); // computing greater_than
+  switch (bw_x)
+  {
+  case 6:
+    mill->comparetest(msb_x, reswrap, tmp_x, size, bw_x - 1, true, false, 6); // computing greater_than
+    break;
+  case 7:                                                                     // 7-bit
+    mill->comparetest(msb_x, reswrap, tmp_x, size, bw_x - 1, true, false, 7); // computing greater_than
+    break;
+  case 8:                                                                     // 8-bit
+    mill->comparetest(msb_x, reswrap, tmp_x, size, bw_x - 1, true, false, 8); // computing greater_than
+    break;
+  case 9:                                                                     // 8-bit
+    mill->comparetest(msb_x, reswrap, tmp_x, size, bw_x - 1, true, false, 5); // computing greater_than
+    break;
+  case 10:                                                                    //
+    mill->comparetest(msb_x, reswrap, tmp_x, size, bw_x - 1, true, false, 5); // computing greater_than
+    break;
+  case 11:                                                                    //
+    mill->comparetest(msb_x, reswrap, tmp_x, size, bw_x - 1, true, false, 6); // computing greater_than
+    break;
+  case 20:                                                                    //
+    mill->comparetest(msb_x, reswrap, tmp_x, size, bw_x - 1, true, false, 7); // computing greater_than
+    break;
+  default:
+    mill->comparetest(msb_x, reswrap, tmp_x, size, bw_x - 1, true, false, 7); // computing greater_than
+    break;
+  }
 
   for (int i = 0; i < size; i++)
   {
@@ -479,61 +564,6 @@ void AuxProtocols::sextend_MSB_to_Wrap_bitMul(int32_t dim, uint64_t *inA, uint8_
   }
   // std::cout << "r[" << i << "] = " << r[i] << std::endl;
 
-
-// Perform the multiplication
-uint64_t *bit_mul = new uint64_t[dim];
-if (party == sci::ALICE)
-{
-
-  sci::PRG128 prg;
-  uint64_t *data0 = new uint64_t[dim];
-  prg.random_data(data0, dim * sizeof(uint64_t));
-  otpack->iknp_straight->send_cot(data0, r, dim, bwC);
-  for (int i = 0; i < dim; i++)
-  {
-    // assert (msb[i] == 0);
-    if (msb[i] == 0)
-      outC[i] = -((1ULL << bwC) - data0[i]) & mask_bwC;
-    else
-      outC[i] = ((1ULL << bwC) - data0[i]) & mask_bwC;
-  }
-  delete[] data0;
-}
-else
-{ // party == BOB
-  bool *choice = new bool[dim];
-  for (int i = 0; i < dim; i++)
-  {
-    choice[i] = r[i];
-  }
-  uint64_t *data = new uint64_t[dim];
-  otpack->iknp_straight->recv_cot(data, choice, dim, bwC);
-  for (int i = 0; i < dim; i++)
-  {
-    // assert (msb[i] == 0);
-    if (msb[i] == 0)
-      outC[i] = (1 - data[i]) & mask_bwC;
-    else
-      outC[i] = (data[i]) & mask_bwC;
-  }
-  delete[] choice;
-}
-}
-
-
-
-void AuxProtocols::lastbit_MSB_to_Wrap_bitMul(int32_t dim, uint64_t *inA,  uint64_t *outC, int32_t bwC)
-{
-  uint64_t mask_bwC = (bwC == 64 ? -1 : ((1ULL << bwC) - 1));
-  uint64_t *r = new uint64_t[dim];
-  uint64_t half = 1ULL << (bwC - 1);
-  for (int i = 0; i < dim; i++)
-  {
-
-        r[i] = inA[i]& 1;
-    // std::cout << "r[" << i << "] = " << r[i] << std::endl;
-  }
-
   // Perform the multiplication
   uint64_t *bit_mul = new uint64_t[dim];
   if (party == sci::ALICE)
@@ -546,6 +576,9 @@ void AuxProtocols::lastbit_MSB_to_Wrap_bitMul(int32_t dim, uint64_t *inA,  uint6
     for (int i = 0; i < dim; i++)
     {
       // assert (msb[i] == 0);
+      if (msb[i] == 0)
+        outC[i] = -((1ULL << bwC) - data0[i]) & mask_bwC;
+      else
         outC[i] = ((1ULL << bwC) - data0[i]) & mask_bwC;
     }
     delete[] data0;
@@ -562,12 +595,60 @@ void AuxProtocols::lastbit_MSB_to_Wrap_bitMul(int32_t dim, uint64_t *inA,  uint6
     for (int i = 0; i < dim; i++)
     {
       // assert (msb[i] == 0);
+      if (msb[i] == 0)
+        outC[i] = (1 - data[i]) & mask_bwC;
+      else
         outC[i] = (data[i]) & mask_bwC;
     }
     delete[] choice;
   }
 }
 
+void AuxProtocols::lastbit_MSB_to_Wrap_bitMul(int32_t dim, uint64_t *inA, uint64_t *outC, int32_t bwC)
+{
+  uint64_t mask_bwC = (bwC == 64 ? -1 : ((1ULL << bwC) - 1));
+  uint64_t *r = new uint64_t[dim];
+  uint64_t half = 1ULL << (bwC - 1);
+  for (int i = 0; i < dim; i++)
+  {
+
+    r[i] = inA[i] & 1;
+    // std::cout << "r[" << i << "] = " << r[i] << std::endl;
+  }
+
+  // Perform the multiplication
+  uint64_t *bit_mul = new uint64_t[dim];
+  if (party == sci::ALICE)
+  {
+
+    sci::PRG128 prg;
+    uint64_t *data0 = new uint64_t[dim];
+    prg.random_data(data0, dim * sizeof(uint64_t));
+    otpack->iknp_straight->send_cot(data0, r, dim, bwC);
+    for (int i = 0; i < dim; i++)
+    {
+      // assert (msb[i] == 0);
+      outC[i] = ((1ULL << bwC) - data0[i]) & mask_bwC;
+    }
+    delete[] data0;
+  }
+  else
+  { // party == BOB
+    bool *choice = new bool[dim];
+    for (int i = 0; i < dim; i++)
+    {
+      choice[i] = r[i];
+    }
+    uint64_t *data = new uint64_t[dim];
+    otpack->iknp_straight->recv_cot(data, choice, dim, bwC);
+    for (int i = 0; i < dim; i++)
+    {
+      // assert (msb[i] == 0);
+      outC[i] = (data[i]) & mask_bwC;
+    }
+    delete[] choice;
+  }
+}
 
 void AuxProtocols::clear_MSB_to_Wrap_bitMul(int32_t dim, uint64_t *inA, uint8_t *msb, uint64_t *outC, int32_t bwC)
 {

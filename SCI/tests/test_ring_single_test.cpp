@@ -862,7 +862,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         // 设置标题和标签
         // plt::title("Simple Line Plot");
         // plt::xlabel("x-axis");
-        std::ofstream csvFile("/home/zhaoqian/EzPC/SCI/tests/auto_test_output.csv", std::ios::app);
+        std::ofstream csvFile("/home/zhaoqian/EzPC/SCI/tests/single_test_output.csv", std::ios::app);
 
         if (!csvFile.is_open())
         {
@@ -967,7 +967,7 @@ int main(int argc, char **argv)
 
     if (party != ALICE)
     {
-        const std::string filename = "/home/zhaoqian/EzPC/SCI/tests/auto_test_output.csv";
+        const std::string filename = "/home/zhaoqian/EzPC/SCI/tests/single_test_output.csv";
         std::ofstream csvFile;
         // 第一次访问，清空文件
         csvFile.open(filename, std::ios::out | std::ios::trunc);
@@ -979,14 +979,14 @@ int main(int argc, char **argv)
         csvFile.close();
     }
 
-    for (uint64_t i = 6; i < 14; i++)
+    for (uint64_t i = 12; i < 14; i++)
     {
 
-        for (uint64_t j = 7; j < 14; j++)
+        for (uint64_t j = 12; j < 14; j++)
         {
             for (uint64_t k = 6; k < 8; k++)
             {
-                for (uint64_t l = 11; l < 13; l++)
+                for (uint64_t l = 12; l < 13; l++)
                 {
                     if ((i <= l) & (j <= l))
                         init_test(i, j, k, l);
