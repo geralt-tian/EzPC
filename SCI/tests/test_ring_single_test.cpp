@@ -10,6 +10,7 @@
 
 #include "Millionaire/millionaire.h"
 #include "Millionaire/millionaire_with_equality.h"
+#include "Millionaire/equality.h"
 #include "BuildingBlocks/truncation.h"
 #include "BuildingBlocks/aux-protocols.h"
 #include <chrono>
@@ -58,9 +59,13 @@ uint64_t mask_h = (h == 64) ? ~0ULL : (1ULL << h) - 1;
 // s = 5(低精度)，s = 6(高)， s = 7 与 s = 6 误差相差不大
 Truncation *trunc_oracle;
 AuxProtocols *aux;
-int dim = 14336;
+MillionaireWithEquality *mill_eq;
+Equality *eq;
+
+int dim = 35000;
 uint64_t acc = 2;
-uint64_t init_input = 2089984;
+uint64_t init_input = 2080769;
+// uint64_t init_input = 2097152;
 uint64_t step_size = 1;
 uint64_t correct = 1;
 // double calculate_GELU(uint64_t value)
@@ -186,54 +191,113 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     uint64_t *outax = new uint64_t[dim];
     for (int i = 0; i < dim; i++)
     {
-        inA[i] = 0 + i * 0;
-        inB[i] = init_input + i * step_size;
+        inA[i] = (0 + i * 0) & mask_bwL;
+        inB[i] = (init_input + i * step_size)& mask_bwL;
     }
     uint64_t *inA_h = new uint64_t[dim];
     uint64_t *inB_h = new uint64_t[dim];
 
-    // std::cout << "\n=========STEP3 use DRelu to learn [[b]]^B===========" << std::endl;
+    // std::cout << "\n=========STEP??  ===========" << std::endl;
+    mill_eq = new MillionaireWithEquality(party, iopack, otpack);
+    trunc_oracle = new Truncation(party, iopack, otpack);
+    aux = new AuxProtocols(party, iopack, otpack);
+    eq = new Equality(party, iopack, otpack);
+    uint64_t *TR_output = new uint64_t[dim];
+    uint64_t *comp_eq_input = new uint64_t[dim];
+    uint64_t *eq_input = new uint64_t[dim];
+    uint64_t mask_TR = (bwL - f - 2 == 64) ? ~0ULL : (1ULL << bwL - f - 2) - 1;
+    uint64_t mask_TR_sub_1 = (bwL - f - 3 == 64) ? ~0ULL : (1ULL << bwL - f - 3) - 1;
+    uint8_t *res_cmp = new uint8_t[dim];
+    uint8_t *res_eq = new uint8_t[dim];
+    uint8_t *res_eq_ = new uint8_t[dim];
 
-    uint8_t *Drelu = new uint8_t[dim];
-    uint8_t *msbA = new uint8_t[dim];
-    uint8_t *msbB = new uint8_t[dim];
-    uint8_t *wrap = new uint8_t[dim];
-    uint64_t STEP3_comm_start = iopack->get_comm();
-    // Drelu = MSB , Alice ^1
+    // uint8_t *m0 = new uint8_t[dim];
+    // uint8_t *res_eq_ = new uint8_t[dim];
     if (party == ALICE)
     {
-        prod->aux->MSBnew(inA, msbA, wrap, dim, bwL);
-    }
-    else
-    {
-        prod->aux->MSBnew(inB, msbB, wrap, dim, bwL);
-    }
-    uint64_t STEP3_comm_end = iopack->get_comm();
-    if (party == ALICE)
-    {
+        trunc_oracle->truncate_and_reduce(dim, inA, TR_output, f + 2, bwL);
         for (int i = 0; i < dim; i++)
         {
-            Drelu[i] = msbA[i] ^ 1;
+            comp_eq_input[i] = mask_TR_sub_1 - (TR_output[i] & mask_TR_sub_1);
+            eq_input[i] = mask_TR_sub_1 +1 - (TR_output[i] & mask_TR_sub_1);
         }
     }
     else
     {
+        trunc_oracle->truncate_and_reduce(dim, inB, TR_output, f + 2, bwL);
         for (int i = 0; i < dim; i++)
         {
-            Drelu[i] = msbB[i];
+            comp_eq_input[i] = TR_output[i] & mask_TR_sub_1;
+            eq_input[i] = TR_output[i] & mask_TR_sub_1;
         }
+    }
+
+    mill_eq->compare_with_eq(res_cmp, res_eq, comp_eq_input, dim, bwL - f - 2);
+    if(party == ALICE){
+        for (int i = 0; i < dim; i++)
+        {
+            res_cmp[i] = res_cmp[i] ^ 1 ^ (TR_output[i] >> ( bwL - f - 2- 1));
+        }
+    }
+    else   
+    {
+        for (int i = 0; i < dim; i++)
+        {
+            res_cmp[i] = res_cmp[i] ^ (TR_output[i] >> (bwL - f - 2 - 1));
+        }
+    }
+
+
+    ////////////////////eq_
+    uint64_t *eq_zero_input = new uint64_t[dim];
+    if(party == ALICE){
+        for (int i = 0; i < dim; i++)
+        {
+            eq_zero_input[i] = mask_TR + 1 - TR_output[i];
+        }
+    }
+    else   
+    {
+        for (int i = 0; i < dim; i++)
+        {
+            eq_zero_input[i] = TR_output[i];
+        }
+    }
+
+    eq->bitlen_lt_beta(res_eq_, eq_zero_input,  dim, bwL - f - 2);
+
+
+    // mill_eq->compare_with_eq(res_cmp, res_eq, comp_eq_input, dim, bwL - f - 2);
+    if (party == ALICE)
+    {
+        for (int i = 0; i < dim; i++)
+        {
+            res_cmp[i] = res_cmp[i] ^ 1;
+        }
+    }
+
+    for (int i = 0; i < dim; i++)
+        {
+            res_cmp[i] = res_cmp[i] ^ res_eq[i];
+        }
+
+    for (int i = 0; i < dim; i++)
+    {
+        std::cout << std::endl;
+        std::cout << "inB[" << i << "] = " << inB[i] << std::endl;
+        std::cout << "TR_output[" << i << "] = " << TR_output[i] << std::endl;
+        std::cout << "comp_eq_input[" << i << "] = " << comp_eq_input[i] << std::endl;
+        // std::cout << "inB[" << i << "] = " << inB[i] << std::endl;
+        std::cout << "res_cmp[" << i << "] = " << (static_cast<int>(res_cmp[i])) << std::endl;
+        std::cout << "res_eq[" << i << "] = " << (static_cast<int>(res_eq[i])) << std::endl;
     }
 
     // for (int i = 0; i < dim; i++)
     // {
-    //     std::cout << "wrap[" << i << "] = " << static_cast<int>(wrap[i]) << std::endl;
+
     // }
 
-    // std::cout << "Drelu[" << 0 << "] = " << static_cast<int>(Drelu[0]) << std::endl;
-
-    // std::cout << "\n=========STEP4 use EMUX to learn [[|x|]]in L ring===========" << std::endl;
-    uint64_t STEP4_comm_start = iopack->get_comm();
-    aux = new AuxProtocols(party, iopack, otpack);
+    // std::cout << "\n=========STEP3 use DRelu to learn [[b]]^B===========" << std::endl;
     uint64_t *EMUX_output_x = new uint64_t[dim];
     uint64_t *neg_inA = new uint64_t[dim];
     uint64_t *neg_inB = new uint64_t[dim];
@@ -244,7 +308,8 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         {
             neg_inA[i] = ((-inA[i]) & mask_bwL); // 取反
         }
-        select_share(Drelu, inA, neg_inA, EMUX_output_x, dim, bwL);
+        select_share(res_cmp, inA, neg_inA, EMUX_output_x, dim, bwL);
+        std::cout << "EMUX_output_x[" << 0 << "] = " << EMUX_output_x[0] << std::endl;
         // aux->multiplexerabs(Drelu, inA, EMUX_output_x, dim, bwL, bwL);
     }
     else
@@ -253,15 +318,11 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         {
             neg_inB[i] = ((-inB[i]) & mask_bwL); // 取反
         }
-        select_share(Drelu, inB, neg_inB, EMUX_output_x, dim, bwL);
+        select_share(res_cmp, inB, neg_inB, EMUX_output_x, dim, bwL);
+        std::cout << "EMUX_output_x[" << 0 << "] = " << EMUX_output_x[0] << std::endl;
         // aux->multiplexerabs(Drelu, inB, EMUX_output_x, dim, bwL, bwL);
     }
-    uint64_t *EMUX_output_x1 = new uint64_t[dim];
-    for (int i = 0; i < dim; i++)
-    {
-        EMUX_output_x1[i] = EMUX_output_x[i];
-    }
-    uint64_t STEP4_comm_end = iopack->get_comm();
+
     // std::cout << "\n=========STEP7 extract the lower h bits===========" << std::endl;
     // std::cout << "inB[" << 0 << "] = " << inB[0] << std::endl;
     assign_lower_h_bits(dim, inA, inB, inA_h, inB_h, h);
@@ -270,23 +331,27 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     // step6 check
     // std::cout << "\n=========STEP7 get mid s bit for LUT===========" << std::endl;
 
-    trunc_oracle = new Truncation(party, iopack, otpack);
     uint64_t *outtrunc = new uint64_t[dim];
-    uint8_t *wrap_ = new uint8_t[dim];
-    // if(acc==2){
-    if (party == ALICE)
+    // uint8_t *wrap_ = new uint8_t[dim];
+    // // if(acc==2){
+    // if (party == ALICE)
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         wrap_[i] = (wrap[i] ^ Drelu[i] ^ 1) & 1;
+    //     }
+    // }
+    // else
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         wrap_[i] = (wrap[i] ^ Drelu[i]) & 1;
+    //     }
+    // }
+    uint64_t *EMUX_output_x1 = new uint64_t[dim];
+    for (int i = 0; i < dim; i++)
     {
-        for (int i = 0; i < dim; i++)
-        {
-            wrap_[i] = (wrap[i] ^ Drelu[i] ^ 1) & 1;
-        }
-    }
-    else
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            wrap_[i] = (wrap[i] ^ Drelu[i]) & 1;
-        }
+        EMUX_output_x1[i] = EMUX_output_x[i];
     }
     uint64_t *EMUX_output_x1_h = new uint64_t[dim];
     for (int i = 0; i < dim; i++)
@@ -428,13 +493,6 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
             // std::cout << "(outtrunc[i] + outtrunc1[i])" << i << "] = " << (outtrunc[i] + outtrunc1[i]) << std::endl;
             // std::cout << "((1ULL << s) - 1)" << ((1ULL << s) - 1) << std::endl;
         }
-
-        // for (int i = 0; i < dim; i++)
-        // {
-        //     std::cout << "outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
-        //     std::cout << "outtrunc_a[" << i << "] = " << outtrunc_a[i] << std::endl;
-        // }
-        // std::cout << "outtrunc_a[" << 0 << "] = " << outtrunc_a[0] << std::endl;
     }
     uint64_t STEP6_comm_start = iopack->get_comm();
     if (party == ALICE)
@@ -611,6 +669,31 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     for (int i = 0; i < dim; i++)
         z[i] = ((outax[i] + b_SExt[i] * static_cast<uint64_t>(std::pow(2, f - lb + 1))) & mask_bwL);
 
+    /////////////////////////////////////new
+
+    ///////TODO
+    uint8_t *choose_bit = new uint8_t[dim];
+    uint8_t *and_input1 = new uint8_t[dim];
+    uint8_t *and_input2 = new uint8_t[dim];
+    if (party == ALICE)
+    {
+        for (int i = 0; i < dim; i++)
+        {
+            and_input1[i] = res_eq[i]^1;
+            and_input2[i] = res_eq_[i]^1;
+        }
+    }
+    else
+    {
+        for (int i = 0; i < dim; i++)
+        {
+            and_input1[i] = res_eq[i];
+            and_input2[i] = res_eq_[i];
+        }
+    }
+    aux->AND(and_input1, and_input2, choose_bit, dim);
+    uint64_t *choose_ss_output = new uint64_t[dim];
+
     // std::cout << "\n=========STEP14 Drelu |x|-a  to learn b' ===========" << std::endl;
     // 去掉13，修改14
     uint8_t *Drelu_ = new uint8_t[dim];
@@ -662,6 +745,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     uint64_t *abs_xhalf = new uint64_t[dim];
     uint64_t *bitMul_wrap = new uint64_t[dim];
     uint64_t *out_last_bitwrap = new uint64_t[dim];
+
     if (acc == 2)
     {
         // std::cout << "acc == 2" << std::endl;
@@ -695,7 +779,25 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         {
             neg_abs_xhalf[i] = -abs_xhalf[i] & mask_bwL;
         }
-        select_share(Drelu, abs_xhalf, neg_abs_xhalf, xhalf, dim, bwL);
+        // select_share(res_cmp, abs_xhalf, neg_abs_xhalf, xhalf, dim, bwL);
+        if(party == ALICE){
+            trunc_oracle->truncate(dim, inA, xhalf, 1, bwL, true);
+            for (int i = 0; i < dim; i++)
+            {
+                std::cout << "inA[" << i << "] = " << inA[i] << std::endl;
+                std::cout << "xhalf[" << i << "] = " << xhalf[i] << std::endl;
+            }
+        }
+        else{
+            trunc_oracle->truncate(dim, inB, xhalf, 1, bwL, true);
+                        for (int i = 0; i < dim; i++)
+            {
+                std::cout << "inB[" << i << "] = " << inB[i] << std::endl;
+                std::cout << "xhalf[" << i << "] = " << xhalf[i] << std::endl;
+            }
+        }
+        
+        // trunc_oracle->truncate(dim, abs_xhalf, xhalf, 1, bwL);
     }
     else
     {
@@ -715,6 +817,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         }
     }
 
+    select_share(choose_bit, abs_xhalf, z, choose_ss_output, dim, bwL);
     // for (int i = 0; i < dim; i++)
     // {
     //     std::cout << "xhalf[" << i << "] = " << xhalf[i] << std::endl;
@@ -798,7 +901,11 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     double average, max_val;
     for (int i = 0; i < dim; i++)
     {
-        y[i] = (xhalf[i] + MUX_output_g[i]) & mask_bwL;
+        // y[i] = (xhalf[i] + second_mux_output[i] + MUX_output_z[i]) & mask_bwL;
+        y[i] = (xhalf[i] + choose_ss_output[i]) & mask_bwL;
+        std::cout << "xhalf[" << i << "] = " << xhalf[i] << std::endl;
+        // std::cout << "second_mux_output[" << i << "] = " << second_mux_output[i] << std::endl;
+        std::cout << "MUX_output_z[" << i << "] = " << choose_ss_output[i] << std::endl;
     }
 
     // std::cout << "\n=========END verification ===========" << std::endl;
@@ -830,13 +937,13 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         double f_pow = pow(2, f);
         for (int i = 0; i < dim; i++)
         {
-            // std::cout << "dim [" << i << "]total y = y0 + y1 =  " << ((y[i] + recv_y[i]) & mask_bwL) << ", real num: " << (double)decode_ring((y[i] + recv_y[i]) & mask_bwL, bwL) / f_pow << std::endl;
+            std::cout << "dim [" << i << "]total y = y0 + y1 =  " << ((y[i] + recv_y[i]) & mask_bwL) << ", real num: " << (double)decode_ring((y[i] + recv_y[i]) & mask_bwL, bwL) / f_pow << std::endl;
 
             // std::cout << "ax +b =  " << (((inA[i] + inB[i]) * a_bob[i] + b_bob[i]) & mask_bwL) << std::endl;
             // std::cout << "ax +b  >> 12=  " << ((((inA[i] + inB[i]) * a_bob[i] + b_bob[i]) & mask_bwL) >> 12) << std::endl;
-            // std::cout << "The result " << inA[i] + inB[i] << " should be calculate_GELU = " << calculate_GELU(inA[i] + inB[i],f) << std::endl;
+            std::cout << "The result " << inA[i] + inB[i] << " should be calculate_GELU = " << calculate_GELU(inA[i] + inB[i],f) << std::endl;
             ULPs[i] = abs((((double)decode_ring((y[i] + recv_y[i]) & mask_bwL, bwL) / f_pow) - calculate_GELU(inA[i] + inB[i], f)) / 0.000244140625);
-            // std::cout << "The ULP is = " << ULPs[i] << std::endl;
+            std::cout << "The ULP is = " << ULPs[i] << std::endl;
         }
 
         double sum = 0.0;
@@ -874,13 +981,13 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         csvFile.seekp(0, std::ios::end);
         if (csvFile.tellp() == 0)
         {
-            csvFile << "la,lb,f,s,average,max_val,"
-                    << "Total_MSBytes,Total_time_ms\n";
+            csvFile << "la,   lb,   f,   s,   average,   max_val,   "
+                    << "   Total_MSBytes,   Total_time_ms\n";
         }
 
         // 示例计算（根据实际情况进行调整）
-        double STEP3_MSBytes = (STEP3_comm_end - STEP3_comm_start) / dim * 8;
-        double STEP4_MSBytes = (STEP4_comm_end - STEP4_comm_start) / dim * 8;
+        // double STEP3_MSBytes = (STEP3_comm_end - STEP3_comm_start) / dim * 8;
+        // double STEP4_MSBytes = (STEP4_comm_end - STEP4_comm_start) / dim * 8;
         double STEP5_MSBytes = (STEP5_comm_end - STEP5_comm_start) / dim * 8;
         double STEP6_MSBytes = (STEP6_comm_end - STEP6_comm_start) / dim * 8;
         double STEP7_MSBytes = (STEP7_comm_end - STEP7_comm_start) / dim * 8;
@@ -896,13 +1003,13 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         double Total_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
 
         // 将数据写入 CSV 文件
-        csvFile << la << ","
-                << lb << ","
-                << f << ","
-                << s << ","
-                << average << ","
-                << max_val << ","
-                << Total_MSBytes_Bob + recv_Total_MSBytes_ALICE << ","
+        csvFile << la << ",   "
+                << lb << ",   "
+                << f << ",  "
+                << s << ",   "
+                << average << ",   "
+                << max_val << ",   "
+                << Total_MSBytes_Bob + recv_Total_MSBytes_ALICE << ",   "
                 << Total_time_ms
                 << "\n";
 
@@ -919,8 +1026,8 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         std::cout << "数据已成功写入 auto_test_output.csv" << std::endl;
         ///////////输出时间和通信
         std::cout << "la=" << la << ",lb=" << lb << ",f=" << f << ",s=" << s << std::endl;
-        cout << "STEP3 MSBnew Bytes Sent: " << (STEP3_comm_end - STEP3_comm_start) / dim * 8 << " bits" << endl;
-        cout << "STEP4 Select_share Bytes Sent: " << (STEP4_comm_end - STEP4_comm_start) / dim * 8 << " bits" << endl;
+        // cout << "STEP3 MSBnew Bytes Sent: " << (STEP3_comm_end - STEP3_comm_start) / dim * 8 << " bits" << endl;
+        // cout << "STEP4 Select_share Bytes Sent: " << (STEP4_comm_end - STEP4_comm_start) / dim * 8 << " bits" << endl;
         cout << "STEP5 TR Bytes Sent: " << (STEP5_comm_end - STEP5_comm_start) / dim * 8 << " bits" << endl;
         cout << "STEP6 LUT*2 Bytes Sent: " << (STEP6_comm_end - STEP6_comm_start) / dim * 8 << " bits" << endl;
         cout << "STEP7 hadamard_product Bytes Sent: " << (STEP7_comm_end - STEP7_comm_start) / dim * 8 << " bits" << endl;
@@ -984,7 +1091,7 @@ int main(int argc, char **argv)
 
         for (uint64_t j = 12; j < 14; j++)
         {
-            for (uint64_t k = 6; k < 8; k++)
+            for (uint64_t k = 6; k < 7; k++)
             {
                 for (uint64_t l = 12; l < 13; l++)
                 {
