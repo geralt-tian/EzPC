@@ -54,7 +54,7 @@ uint64_t s = 6;
 // s = 5(低精度)，s = 6(高)， s = 7 与 s = 6 误差相差不大
 Truncation *trunc_oracle;
 AuxProtocols *aux;
-
+MillionaireWithEquality *mill_eq;
 //////////////////////
 // 初始化
 ///////////////////////////////
@@ -66,6 +66,7 @@ int main(int argc, char **argv)
     uint8_t acc = 1;
     uint64_t init_input = 0;
     uint64_t step_size = 2;
+    
     amap.arg("r", party, "Role of party: ALICE = 1; BOB = 2");
     amap.arg("p", port, "Port Number");
     amap.arg("ip", address, "IP Address of server (ALICE)");
@@ -80,7 +81,7 @@ int main(int argc, char **argv)
     std::cout << "Parsed dimension (dim) = " << dim << std::endl;
     iopack = new IOPack(party, port, "127.0.0.1");
     otpack = new OTPack(iopack, party);
-
+mill_eq = new MillionaireWithEquality(party, iopack, otpack);
     uint64_t comm_start = iopack->get_comm();
 
     prod = new LinearOT(party, iopack, otpack);
@@ -95,11 +96,13 @@ int main(int argc, char **argv)
         inB[i] = init_input + i * step_size;
     }
 
-    std::cout << "\n=========STEP3 use DRelu to learn [[b]]^B===========" << std::endl;
+    
 
     uint8_t *Drelu = new uint8_t[dim];
     uint8_t *msbA = new uint8_t[dim];
     uint8_t *msbB = new uint8_t[dim];
+    uint8_t *res_eq = new uint8_t[dim];
+    uint8_t *res_cmp = new uint8_t[dim];
     uint8_t *wrap = new uint8_t[dim];
     uint64_t STEP3_comm_start = iopack->get_comm();
     // Drelu = MSB , Alice ^1
@@ -118,15 +121,20 @@ int main(int argc, char **argv)
             {
                 // prod->aux->MSB(inA, msbA, dim, bwL);
                 flag++;
-                prod->aux->mill->compare(msbA, inA, dim, bitwidth, true, false, j + 3);
+                // prod->aux->mill->compare(msbA, inA, dim, bitwidth, true, false, j + 3);
+
+                mill_eq->compare_with_eq(res_cmp,res_eq,inA, dim, bitwidth, true,  j + 3);
+                
                 // uint64_t STEP3_comm_end = iopack->get_comm();
             }
             else
             {
 
+
                 // prod->aux->MSB(inB, msbB, dim, bwL);
                 auto time_start = chrono::high_resolution_clock::now();
-                prod->aux->mill->compare(msbA, inB, dim, bitwidth, true, false, j + 3);
+                // prod->aux->mill->compare(msbA, inB, dim, bitwidth, true, false, j + 3);
+                mill_eq->compare_with_eq(res_cmp,res_eq, inB, dim, bitwidth, true,  j + 3);
                 auto time_end = chrono::high_resolution_clock::now();
                 Total_time = chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
             }
@@ -145,11 +153,11 @@ int main(int argc, char **argv)
                 double Total_MSBytes_BOB = static_cast<double>(STEP3_comm_end - STEP3_comm_start) / dim * 8;
                 double Total_MSBytes = Total_MSBytes_BOB + recv_Total_MSBytes_ALICE;
 
-                std::ofstream csvFile("/home/zhaoqian/EzPC/SCI/tests/auto_compare_test_output.csv", std::ios::app);
+                std::ofstream csvFile("/home/zhaoqian/EzPC/SCI/tests/auto_compare_eq_test_output.csv", std::ios::app);
 
                 if (!csvFile.is_open())
                 {
-                    std::cerr << "无法打开文件用于写入: auto_compare_test_output.csv" << std::endl;
+                    std::cerr << "无法打开文件用于写入: auto_compare_eq_test_output.csv" << std::endl;
                     return 1; // 或其他适当的错误处理
                 }
 

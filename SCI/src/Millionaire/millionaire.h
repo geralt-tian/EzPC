@@ -27,7 +27,7 @@ SOFTWARE.
 #include <cmath>
 #include <omp.h>
 
-#define MILL_PARAM 7
+#define MILL_PARAM 4
 #define WAN_EXEC
 
 class MillionaireProtocol {

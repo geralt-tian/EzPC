@@ -24,6 +24,7 @@ SOFTWARE.
 #include "Millionaire/millionaire.h"
 #include "OT/emp-ot.h"
 #include "utils/emp-tool.h"
+// #include "BuildingBlocks/aux-protocols.h"
 #include <cmath>
 
 class MillionaireWithEquality {
@@ -32,6 +33,7 @@ public:
   sci::OTPack *otpack;
   TripleGenerator *triple_gen;
   MillionaireProtocol *mill;
+  // AuxProtocols *aux;
   int party;
   int l, r, log_alpha, beta, beta_pow;
   int num_digits, num_triples, log_num_digits;
@@ -44,6 +46,7 @@ public:
     this->otpack = otpack;
     this->mill =
         new MillionaireProtocol(party, iopack, otpack, bitlength, radix_base);
+        // aux = new AuxProtocols(party, iopack, otpack);
     this->triple_gen = mill->triple_gen;
     configure(bitlength, radix_base);
   }
@@ -250,6 +253,168 @@ public:
       res_cmp[i] = leaf_res_cmp[i];
       res_eq[i] = leaf_res_eq[i];
     }
+
+    // Cleanup
+    if (old_num_cmps != num_cmps)
+      delete[] data_ext;
+    delete[] digits;
+    delete[] leaf_res_cmp;
+    delete[] leaf_res_eq;
+  }
+
+  void compare_with_eq_with_wrap(uint8_t *res_cmp, uint8_t *res_eq, uint8_t *res_wrapcomp1, uint8_t *res_wrapcomp2 ,uint8_t *res_wrapeq2 ,uint64_t *data,
+                       int num_cmps, int bitlength, bool greater_than = true,
+                       int radix_base = MILL_PARAM) {
+    configure(bitlength, radix_base);
+    // aux = new AuxProtocols(party, iopack, otpack);
+    if (bitlength <= beta) {
+      bitlen_lt_beta(res_cmp, res_eq, data, num_cmps, bitlength, greater_than,
+                     radix_base);
+      return;
+    }
+
+    int old_num_cmps = num_cmps;
+    // num_cmps should be a multiple of 8
+    num_cmps = ceil(num_cmps / 8.0) * 8;
+
+    // padding with 0s if data dim not multiple of 8
+    uint64_t *data_ext;
+    if (old_num_cmps == num_cmps)
+      data_ext = data;
+    else {
+      data_ext = new uint64_t[num_cmps];
+      memcpy(data_ext, data, old_num_cmps * sizeof(uint64_t));
+      memset(data_ext + old_num_cmps, 0,
+             (num_cmps - old_num_cmps) * sizeof(uint64_t));
+    }
+
+    uint8_t *digits;       // num_digits * num_cmps
+    uint8_t *leaf_res_cmp; // num_digits * num_cmps
+    uint8_t *leaf_res_eq;  // num_digits * num_cmps
+
+    digits = new uint8_t[num_digits * num_cmps];
+    leaf_res_cmp = new uint8_t[num_digits * num_cmps];
+    leaf_res_eq = new uint8_t[num_digits * num_cmps];
+
+    // Extract radix-digits from data
+    for (int i = 0; i < num_digits; i++) // Stored from LSB to MSB
+      for (int j = 0; j < num_cmps; j++)
+        if ((i == num_digits - 1) && (r != 0))
+          digits[i * num_cmps + j] =
+              (uint8_t)(data_ext[j] >> i * beta) & mask_r;
+        else
+          digits[i * num_cmps + j] =
+              (uint8_t)(data_ext[j] >> i * beta) & mask_beta;
+    // ======================
+
+    // Set leaf OT messages now
+    if (party == sci::ALICE) {
+      uint8_t *
+          *leaf_ot_messages; // (num_digits * num_cmps) X beta_pow (=2^beta)
+      leaf_ot_messages = new uint8_t *[num_digits * num_cmps];
+      for (int i = 0; i < num_digits * num_cmps; i++)
+        leaf_ot_messages[i] = new uint8_t[beta_pow];
+
+      // Set Leaf OT messages
+      triple_gen->prg->random_bool((bool *)leaf_res_cmp, num_digits * num_cmps);
+      triple_gen->prg->random_bool((bool *)leaf_res_eq, num_digits * num_cmps);
+      for (int i = 0; i < num_digits; i++) {
+        for (int j = 0; j < num_cmps; j++) {
+          if (i == (num_digits - 1) && (r > 0)) {
+            this->mill->set_leaf_ot_messages(
+                leaf_ot_messages[i * num_cmps + j], digits[i * num_cmps + j],
+                1ULL << r, leaf_res_cmp[i * num_cmps + j],
+                leaf_res_eq[i * num_cmps + j], greater_than);
+          } else {
+            this->mill->set_leaf_ot_messages(
+                leaf_ot_messages[i * num_cmps + j], digits[i * num_cmps + j],
+                beta_pow, leaf_res_cmp[i * num_cmps + j],
+                leaf_res_eq[i * num_cmps + j], greater_than);
+          }
+        }
+      }
+
+      // Perform Leaf OTs with comparison and equality
+      if (r == 1) {
+        // All branches except r
+        otpack->kkot[beta - 1]->send(leaf_ot_messages,
+                                     num_cmps * (num_digits - 1), 2);
+        // r branch
+        otpack->iknp_straight->send(
+            leaf_ot_messages + num_cmps * (num_digits - 1), num_cmps, 2);
+      } else if (r != 0) {
+        // All branches except r
+        otpack->kkot[beta - 1]->send(leaf_ot_messages,
+                                     num_cmps * (num_digits - 1), 2);
+        // r branch
+        otpack->kkot[r - 1]->send(
+            leaf_ot_messages + num_cmps * (num_digits - 1), num_cmps, 2);
+      } else {
+        // All branches including r, r is 0
+        otpack->kkot[beta - 1]->send(leaf_ot_messages, num_cmps * (num_digits),
+                                     2);
+      }
+
+      // Cleanup
+      for (int i = 0; i < num_digits * num_cmps; i++)
+        delete[] leaf_ot_messages[i];
+      delete[] leaf_ot_messages;
+    } else // party = sci::BOB
+    {
+      // Perform Leaf OTs
+      if (r == 1) {
+        // All branches except r
+        otpack->kkot[beta - 1]->recv(leaf_res_cmp, digits,
+                                     num_cmps * (num_digits - 1), 2);
+        // r branch
+        otpack->iknp_straight->recv(leaf_res_cmp + num_cmps * (num_digits - 1),
+                                    digits + num_cmps * (num_digits - 1),
+                                    num_cmps, 2);
+      } else if (r != 0) {
+        // All branches except r
+        otpack->kkot[beta - 1]->recv(leaf_res_cmp, digits,
+                                     num_cmps * (num_digits - 1), 2);
+        // r branch
+        otpack->kkot[r - 1]->recv(leaf_res_cmp + num_cmps * (num_digits - 1),
+                                  digits + num_cmps * (num_digits - 1),
+                                  num_cmps, 2);
+      } else {
+        // All branches including r, r is 0
+        otpack->kkot[beta - 1]->recv(leaf_res_cmp, digits,
+                                     num_cmps * (num_digits), 2);
+      }
+
+      // Extract equality result from leaf_res_cmp
+      for (int i = 0; i < num_digits * num_cmps; i++) {
+        leaf_res_eq[i] = leaf_res_cmp[i] & 1;
+        leaf_res_cmp[i] >>= 1;
+      }
+    }
+    //拿最后两个四位的cmp计算最后八位wrap
+    // uint8_t *res_wrapcomp1 = new uint8_t[num_cmps];
+    // uint8_t *res_wrapcomp2 = new uint8_t[num_cmps];
+    // uint8_t *res_wrapeq2 = new uint8_t[num_cmps];
+    for (int i = 0; i < num_cmps; i++) {
+      res_wrapcomp1[i] = leaf_res_cmp[(num_digits - 1) * num_cmps + i];
+      res_wrapcomp2[i] = leaf_res_cmp[(num_digits - 2) * num_cmps + i];
+      res_wrapeq2[i] = leaf_res_eq[(num_digits - 2) * num_cmps + i];
+    }
+    // aux->AND(res_wrap, res_wrapcomp1, res_wrapeq2, num_cmps);
+
+
+
+
+
+
+    traverse_and_compute_ANDs(num_cmps, leaf_res_eq, leaf_res_cmp);
+
+    for (int i = 0; i < old_num_cmps; i++) {
+      res_cmp[i] = leaf_res_cmp[i];
+      res_eq[i] = leaf_res_eq[i];
+    }
+
+
+
 
     // Cleanup
     if (old_num_cmps != num_cmps)

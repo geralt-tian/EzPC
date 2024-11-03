@@ -693,7 +693,7 @@ void LinearOT::matrix_multiplication(int32_t dim1, int32_t dim2, int32_t dim3,
   uint64_t matmul_cross_terms_comm_end = iopack->get_comm();
 
 
-  std::cout << "matmul_cross_terms_communication: " << matmul_cross_terms_comm_end - matmul_cross_terms_comm_start << std::endl;
+  // std::cout << "matmul_cross_terms_communication: " << matmul_cross_terms_comm_end - matmul_cross_terms_comm_start << std::endl;
   /* print_vec(this, cross_terms, bwC, dim); */
 
   uint64_t *local_terms = new uint64_t[dim];
@@ -736,7 +736,7 @@ void LinearOT::matrix_multiplication(int32_t dim1, int32_t dim2, int32_t dim3,
 
         uint64_t MSB_to_Wrap_comm_end = iopack->get_comm();
 
-        std::cout << "MSB2wrap_communication: " << MSB_to_Wrap_comm_end - MSB_to_Wrap_comm_start << std::endl;
+        // std::cout << "MSB2wrap_communication: " << MSB_to_Wrap_comm_end - MSB_to_Wrap_comm_start << std::endl;
         delete[] tmp_msbA;
       } else {
 
@@ -750,7 +750,7 @@ void LinearOT::matrix_multiplication(int32_t dim1, int32_t dim2, int32_t dim3,
       matmul_multiplexer(dim1, dim2, dim3, wA64, tmpB, wA_B, 1, bwB, bwC - bwA,
                          accumulate, mode);
       uint64_t matmul_multiplexer_comm_end = iopack->get_comm();
-      std::cout << "matmul_multiplexer_communication: " << matmul_multiplexer_comm_end - matmul_multiplexer_comm_start << std::endl;
+      // std::cout << "matmul_multiplexer_communication: " << matmul_multiplexer_comm_end - matmul_multiplexer_comm_start << std::endl;
       delete[] wA64;
     }
   }
