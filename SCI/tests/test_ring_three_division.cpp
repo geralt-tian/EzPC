@@ -46,7 +46,7 @@ uint64_t la = 6; // la=5 f=5,la=14,f=12
 uint64_t f = 12;
 uint64_t s = 6;
 
-uint64_t h = f + 2;
+uint64_t h = f + 3;
 uint64_t Tk = f - 1;
 uint64_t alpha = 3.5 * pow(2, f);
 uint64_t mask_lb = (lb == 64 ? -1 : ((1ULL << lb) - 1));
@@ -170,6 +170,53 @@ void select_share(uint8_t *sel, uint64_t *x, uint64_t *y, uint64_t *output, int3
     }
 }
 
+void EReLU_Eq(uint64_t *inA, uint8_t *b, uint8_t *b_, uint64_t dim, uint64_t bwl)
+{
+    uint8_t *m = new uint8_t[dim];
+    uint64_t *y = new uint64_t[dim];
+    uint64_t mask_l_sub1 = ((bwl - 1) == 64) ? ~0ULL : (1ULL << (bwl - 1)) - 1;
+    for (int i = 0; i < dim; i++)
+    {
+        m[i] = inA[i] >> (bwl - 1);
+        y[i] = inA[i] & mask_l_sub1;
+    }
+    uint64_t *comp_eq_input = new uint64_t[dim];
+    if (party == ALICE)
+    {
+        for (int i = 0; i < dim; i++)
+        {
+            comp_eq_input[i] = (mask_l_sub1 - y[i]) & mask_l_sub1;
+        }
+    }
+    else
+    {
+        for (int i = 0; i < dim; i++)
+        {
+            comp_eq_input[i] = y[i] & mask_l_sub1;
+        }
+    }
+    uint8_t *carry = new uint8_t[dim];
+    uint8_t *res_eq = new uint8_t[dim];
+
+    mill_eq->compare_with_eq(carry, res_eq, comp_eq_input, dim, bwL);
+
+    if (party == ALICE)
+    {
+        for (int i = 0; i < dim; i++)
+        {
+            b[i] = carry[i] ^ 1 ^ m[i];
+        }
+    }
+    else
+    {
+        for (int i = 0; i < dim; i++)
+        {
+            b[i] = carry[i] ^ m[i];
+        }
+    }
+
+    aux->AND(res_eq, m, b_, dim);
+}
 //////////////////////
 // 初始化
 ///////////////////////////////
@@ -183,9 +230,9 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     uint64_t s = k;
     uint64_t f = l;
 
-    uint64_t h = f + 2;
+    uint64_t h = f + 3;
     uint64_t Tk = f - 1;
-    uint64_t alpha = 3.5 * pow(2, f);
+    uint64_t alpha = 8 * pow(2, f);
     uint64_t mask_lb = (lb == 64 ? -1 : ((1ULL << lb) - 1));
     uint64_t mask_l_Tk = (bwL == 64 ? -1 : ((1ULL << (bwL - Tk)) - 1));
     uint64_t mask_lah1 = ((la + h + 1) == 64 ? -1 : ((1ULL << (la + h + 1)) - 1));
@@ -218,22 +265,39 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     ext = new XTProtocol(party, iopack, otpack);
     // comp_eq前进行tr，截掉后14位，方便进行比较，将-alpha——0映射到-1
     uint64_t *comp_eq_input = new uint64_t[dim];
+    uint64_t tr = f + 3;
+    uint64_t mask_bwL_sub_tr = ((bwL - tr) == 64 ? -1 : ((1ULL << (bwL - tr)) - 1));
+    uint64_t mask_bwL_sub_tr_sub_1 = ((bwL - tr - 1) == 64 ? -1 : ((1ULL << (bwL - tr - 1)) - 1));
+
+    std::cout << "mask_bwL_sub_tr_sub_1 = " << mask_bwL_sub_tr_sub_1 << std::endl;
     uint64_t mask_TR_sub_1 = (bwL - h - 1 == 64) ? ~0ULL : (1ULL << bwL - h - 1) - 1;
+    std::cout << "mask_TR_sub_1 = " << mask_TR_sub_1 << std::endl;
+    uint64_t *eight_bit_wrap = new uint64_t[dim];
     if (party == ALICE)
     {
-        trunc_oracle->truncate_and_reduce(dim, inA, input_cut_h, h, bwL);
+        trunc_oracle->truncate_and_reduce_eight_bit_wrap(dim, inA, input_cut_h, eight_bit_wrap, tr, bwL);
         for (int i = 0; i < dim; i++)
         {
-            comp_eq_input[i] = mask_TR_sub_1 + 1 - (input_cut_h[i] & mask_TR_sub_1);
+            comp_eq_input[i] = mask_bwL_sub_tr_sub_1 + 1 - (input_cut_h[i] & mask_bwL_sub_tr_sub_1);
+            // std::cout << "input_cut_h[" << i << "] = " << (input_cut_h[i] & mask_bwL_sub_tr_sub_1) << std::endl;
+            std::cout << "eight_bit_wrap[" << i << "] = " << eight_bit_wrap[i] << std::endl;
+            // comp_eq_input0 = 64 - (y0 mod 64)
+            // comp_eq_input0 = 2^(l-t-1) - (y0 mod 2^(l-t-1))
+
+            // comp_eq_input1 = y1 mod 2^(l-t-1)
+            // 用 comp 去选
+
             // eq_input[i] = mask_TR_sub_1 + 1 - (TR_output[i] & mask_TR_sub_1);
         }
     }
     else
     {
-        trunc_oracle->truncate_and_reduce(dim, inB, input_cut_h, h, bwL);
+        trunc_oracle->truncate_and_reduce_eight_bit_wrap(dim, inB, input_cut_h, eight_bit_wrap, tr, bwL);
         for (int i = 0; i < dim; i++)
         {
-            comp_eq_input[i] = input_cut_h[i] & mask_TR_sub_1;
+            comp_eq_input[i] = input_cut_h[i] & mask_bwL_sub_tr_sub_1;
+            // std::cout << "input_cut_h[" << i << "] = " << (input_cut_h[i] & mask_bwL_sub_tr_sub_1) << std::endl;
+            std::cout << "eight_bit_wrap[" << i << "] = " << eight_bit_wrap[i] << std::endl;
             // eq_input[i] = TR_output[i] & mask_TR_sub_1;
         }
     }
@@ -241,28 +305,41 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     // comp_eq 得到 eq=1时，值映射到-1，means在中间区间。否则，comp=0，为负值，comp=1为正。comp_eq还需要得到一个wrap
     uint8_t *res_cmp = new uint8_t[dim];
     uint8_t *res_eq = new uint8_t[dim];
-    uint8_t *res_wrap = new uint8_t[dim];
-    uint8_t *res_wrapcomp1 = new uint8_t[dim];
-    uint8_t *res_wrapcomp2 = new uint8_t[dim];
-    uint8_t *res_wrapeq2 = new uint8_t[dim];
-    mill_eq->compare_with_eq_with_wrap(res_cmp, res_eq, res_wrapcomp1, res_wrapcomp2, res_wrapeq2, comp_eq_input, dim, bwL - h); // res_wrapcomp1是最右边的叶子节点
 
-    // for (int i = 0; i < dim; i++)
-    // {
-    //     std::cout << "res_cmp[" << i << "] = " << static_cast<int>(res_cmp[i]) << std::endl;
-    //     // std::cout << "non_negative1_part[" << i << "] = " << non_negative1_part[i] << std::endl;
-    // }
-    aux->AND(res_wrap, res_wrapcomp1, res_wrapeq2, dim);
+    // mill_eq->compare_with_eq(res_cmp, res_eq,  comp_eq_input, dim, bwL - h); // res_wrapcomp1是最右边的叶子节点
+
+    EReLU_Eq(input_cut_h, res_cmp, res_eq, dim, bwL - h);
     for (int i = 0; i < dim; i++)
     {
-        res_wrap[i] = res_wrap[i] ^ res_wrapcomp2[i];
+        std::cout << "res_cmp[" << i << "] = " << static_cast<int>(res_cmp[i]) << std::endl;
+        std::cout << "res_eq[" << i << "] = " << static_cast<int>(res_eq[i]) << std::endl;
+        // std::cout << "non_negative1_part[" << i << "] = " << non_negative1_part[i] << std::endl;
     }
+
     // tr 得到中间长度为s的index，进行LUT
     uint64_t *input_lower_h = new uint64_t[dim];
     uint64_t *outtrunc = new uint64_t[dim];
+
     assign_lower_h_bits(dim, inA, inB, input_lower_h, h);
 
-    trunc_oracle->truncate_and_reduce(dim, input_lower_h, outtrunc, h - s, h); // 这个不需要tr，可以本地截断加wrap，wrap上一步已经算好了
+    for (int i = 0; i < dim; i++)
+    {
+        std::cout << "input_lower_h[" << i << "] = " << input_lower_h[i] << std::endl;
+    }
+
+    // trunc_oracle->truncate_and_reduce(dim, input_lower_h, outtrunc, h - s, h); // 这个不需要tr，可以本地截断加wrap，wrap上一步已经算好了
+
+    for (int i = 0; i < dim; i++)
+    {
+        // outtrunc[i] = input_lower_h[i] & mask_s;
+        outtrunc[i] = input_lower_h[i] >> (h - s);
+        outtrunc[i] = (outtrunc[i] + eight_bit_wrap[i]) & mask_s;
+    }
+
+    for (int i = 0; i < dim; i++)
+    {
+        std::cout << "***outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
+    }
 
     uint64_t *outtrunc1 = new uint64_t[dim];
     uint64_t *outtrunc_a = new uint64_t[dim];
@@ -277,6 +354,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         for (int i = 0; i < dim; i++)
         {
             outtrunc_a[i] = (outtrunc[i] + outtrunc1[i]) & ((1ULL << s) - 1);
+            std::cout << "outtrunc_a[" << i << "] = " << outtrunc_a[i] << std::endl;
         }
     }
     uint64_t N = 1ULL << s; // LUT size
@@ -447,11 +525,11 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
 
     if (party == ALICE)
     {
-        select_share(res_cmp, z, inA, non_negative1_part, dim, bwL);
+        select_share(res_cmp,  inA,z , non_negative1_part, dim, bwL);
     }
     else
     {
-        select_share(res_cmp, z, inB, non_negative1_part, dim, bwL);
+        select_share(res_cmp, inB,  z, non_negative1_part, dim, bwL);
     }
     for (int i = 0; i < dim; i++)
     {
@@ -511,12 +589,15 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         }
         double average = 0.0;
         double max_val = 0.0;
+        double min_val = 0.0;
         average = sum / static_cast<double>(dim);
         // std::cout << "sum: " << sum << std::endl;
         // std::cout << "static_cast<double>(dim): " << static_cast<double>(dim) << std::endl;
         max_val = *std::max_element(ULPs, ULPs + dim); // 去掉了第一个ULP
+        min_val = *std::min_element(ULPs, ULPs + dim); // 去掉了第一个ULP
         std::cout << "average: " << average << std::endl;
         std::cout << "max_val: " << max_val << std::endl;
+        std::cout << "min_val: " << min_val << std::endl;
     }
 
     delete[] inA;
@@ -569,7 +650,7 @@ int main(int argc, char **argv)
         {
             for (uint64_t k = 6; k < 7; k++)
             {
-                for (uint64_t l = 12; l < 13; l++)
+                for (uint64_t l = 11; l < 12; l++)
                 {
                     if ((i <= l) & (j <= l))
                         init_test(i, j, k, l);

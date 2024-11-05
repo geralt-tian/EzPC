@@ -57,38 +57,96 @@ void AuxProtocols::wrap_computation(uint64_t *x, uint8_t *y, int32_t size,
       tmp_x[i] = (mask - x[i]) & mask; // 2^{bw_x} - 1 - x[i]
   }
 
-switch (bw_x)
+  // switch (bw_x)
+  //   {
+  //   case 6:
+  //     mill->compare(y, tmp_x, size, bw_x, true, false, 6); // computing greater_than
+  //     break;
+  //   case 7:                                                // 7-bit
+  //     mill->compare(y, tmp_x, size, bw_x, true, false, 7); // computing greater_than
+  //     break;
+  //   case 8:                                                // 8-bit
+  //     mill->compare(y, tmp_x, size, bw_x, true, false, 7); // computing greater_than
+  //     break;
+  //   case 9:                                                //
+  //     mill->compare(y, tmp_x, size, bw_x, true, false, 5); // computing greater_than
+  //     break;
+  //   case 10:                                               //
+  //     mill->compare(y, tmp_x, size, bw_x, true, false, 5); // computing greater_than
+  //     break;
+  //   case 11:                                               //
+  //     mill->compare(y, tmp_x, size, bw_x, true, false, 6); // computing greater_than
+  //     break;
+  //   case 20:                                               //
+  //     mill->compare(y, tmp_x, size, bw_x, true, false, 7); // computing greater_than
+  //     break;
+  //   default:
+  
+  mill->compare(y, tmp_x, size, bw_x, true); // computing greater_than  uint8_t * eight_bit_wrap = new uint8_t[size];
+  //   break;
+  // }
+
+  // mill->compare(y, tmp_x, size, bw_x, true); // computing greater_than
+
+  delete[] tmp_x;
+}
+
+void AuxProtocols::wrap_computation_eight_bit_wrap(uint64_t *x, uint8_t *y,uint64_t *eight_bit_wrap, int32_t size,
+                                    int32_t bw_x)
+{
+  assert(bw_x <= 64);
+  uint64_t mask = (bw_x == 64 ? -1 : ((1ULL << bw_x) - 1));
+
+  uint64_t *tmp_x = new uint64_t[size];
+  for (int i = 0; i < size; i++)
   {
-  case 6:
-    mill->compare(y, tmp_x, size, bw_x, true, false, 6); // computing greater_than
-    break;
-  case 7:                                                // 7-bit
-    mill->compare(y, tmp_x, size, bw_x, true, false, 7); // computing greater_than
-    break;
-  case 8:                                                // 8-bit
-    mill->compare(y, tmp_x, size, bw_x, true, false, 7); // computing greater_than
-    break;
-  case 9:                                                //
-    mill->compare(y, tmp_x, size, bw_x, true, false, 5); // computing greater_than
-    break;
-  case 10:                                               //
-    mill->compare(y, tmp_x, size, bw_x, true, false, 5); // computing greater_than
-    break;
-  case 11:                                               //
-    mill->compare(y, tmp_x, size, bw_x, true, false, 6); // computing greater_than
-    break;
-  case 20:                                               //
-    mill->compare(y, tmp_x, size, bw_x, true, false, 7); // computing greater_than
-    break;
-  default:
-    mill->compare(y, tmp_x, size, bw_x, true); // computing greater_than
-    break;
+    if (party == sci::ALICE)
+      tmp_x[i] = x[i] & mask;
+    else
+      tmp_x[i] = (mask - x[i]) & mask; // 2^{bw_x} - 1 - x[i]
   }
 
+  // switch (bw_x)
+  //   {
+  //   case 6:
+  //     mill->compare(y, tmp_x, size, bw_x, true, false, 6); // computing greater_than
+  //     break;
+  //   case 7:                                                // 7-bit
+  //     mill->compare(y, tmp_x, size, bw_x, true, false, 7); // computing greater_than
+  //     break;
+  //   case 8:                                                // 8-bit
+  //     mill->compare(y, tmp_x, size, bw_x, true, false, 7); // computing greater_than
+  //     break;
+  //   case 9:                                                //
+  //     mill->compare(y, tmp_x, size, bw_x, true, false, 5); // computing greater_than
+  //     break;
+  //   case 10:                                               //
+  //     mill->compare(y, tmp_x, size, bw_x, true, false, 5); // computing greater_than
+  //     break;
+  //   case 11:                                               //
+  //     mill->compare(y, tmp_x, size, bw_x, true, false, 6); // computing greater_than
+  //     break;
+  //   case 20:                                               //
+  //     mill->compare(y, tmp_x, size, bw_x, true, false, 7); // computing greater_than
+  //     break;
+  //   default:
+  // uint8_t * eight_bit_wrap = new uint8_t[size];
+  uint8_t *res_wrapcomp1 = new uint8_t[size];
+  uint8_t *res_wrapcomp2 = new uint8_t[size];
+  uint8_t *res_wrapeq2 = new uint8_t[size];
+  uint8_t *res_wrap = new uint8_t[size];
+  mill->compare_eight_bit_wrap(y, res_wrapcomp1,res_wrapcomp2,res_wrapeq2, tmp_x, size, bw_x, true); // computing greater_than  
+  //   break;
+  // }
+      this->AND(res_wrapcomp1,res_wrapeq2 ,  res_wrap, size);
+    for (int i = 0; i < size; i++)
+    {
+        res_wrap[i] = res_wrap[i] ^ res_wrapcomp2[i];
+        // res_wrap[i] = 1;
+    }
 
-
-
-    // mill->compare(y, tmp_x, size, bw_x, true); // computing greater_than
+    this->B2A(res_wrap, eight_bit_wrap, size, 6);
+  // mill->compare(y, tmp_x, size, bw_x, true); // computing greater_than
 
   delete[] tmp_x;
 }
@@ -361,27 +419,27 @@ void AuxProtocols::MSBsec(uint64_t *x, uint8_t *msb_x, int32_t size,
   }
 
   // mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 5); // computing greater_than
-    switch (bw_x)
+  switch (bw_x)
   {
   case 6:
     mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 6); // computing greater_than
     break;
-  case 7:                                                // 7-bit
+  case 7:                                                        // 7-bit
     mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 7); // computing greater_than
     break;
-  case 8:                                                // 8-bit
+  case 8:                                                        // 8-bit
     mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 8); // computing greater_than
     break;
-  case 9:                                                //
+  case 9:                                                        //
     mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 5); // computing greater_than
     break;
-  case 10:                                               //
+  case 10:                                                       //
     mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 5); // computing greater_than
     break;
-  case 11:                                               //
+  case 11:                                                       //
     mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 6); // computing greater_than
     break;
-  case 20:                                               //
+  case 20:                                                       //
     mill->compare(msb_x, tmp_x, size, bw_x - 1, true, false, 7); // computing greater_than
     break;
   default:

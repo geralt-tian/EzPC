@@ -108,6 +108,19 @@ public:
         // Input bitwidth
         int32_t bw);
 
+            void truncate_and_reduce_eight_bit_wrap(
+        // Size of vector
+        int32_t dim,
+        // input vector
+        uint64_t *inA,
+        // output vector
+        uint64_t *outB,
+        uint64_t *eight_bit_wrap,
+        // right shift amount
+        int32_t shift,
+        // Input bitwidth
+        int32_t bw);
+
     void cross_term(int32_t dim, uint64_t *inA, uint64_t *inB, uint64_t *outC, int32_t bwA, int32_t bwB,
                                 int32_t bwC);
 

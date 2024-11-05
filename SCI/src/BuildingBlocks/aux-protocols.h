@@ -50,6 +50,18 @@ public:
         // bitwidth of x
         int32_t bw_x);
 
+        void wrap_computation_eight_bit_wrap(
+        // input vector
+        uint64_t *x,
+        // wrap-bit of shares of x
+        uint8_t *y,
+
+        uint64_t *eight_bit_wrap,
+        // size of input vector
+        int32_t size,
+        // bitwidth of x
+        int32_t bw_x);
+
     // y = sel * x
     void multiplexer(
         // selection bits
