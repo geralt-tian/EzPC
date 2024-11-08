@@ -198,7 +198,7 @@ void EReLU_Eq(uint64_t *inA, uint8_t *b, uint8_t *b_, uint64_t dim, uint64_t bwl
     uint8_t *carry = new uint8_t[dim];
     uint8_t *res_eq = new uint8_t[dim];
 
-    mill_eq->compare_with_eq(carry, res_eq, comp_eq_input, dim, bwL);
+    mill_eq->compare_with_eq(carry, res_eq, comp_eq_input, dim, bwl);
 
     if (party == ALICE)
     {
@@ -273,6 +273,12 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     uint64_t mask_TR_sub_1 = (bwL - h - 1 == 64) ? ~0ULL : (1ULL << bwL - h - 1) - 1;
     std::cout << "mask_TR_sub_1 = " << mask_TR_sub_1 << std::endl;
     uint64_t *eight_bit_wrap = new uint64_t[dim];
+
+
+    uint64_t Comm_start = iopack->get_comm();
+
+
+    uint64_t TR_wrap_start = iopack->get_comm();
     if (party == ALICE)
     {
         trunc_oracle->truncate_and_reduce_eight_bit_wrap(dim, inA, input_cut_h, eight_bit_wrap, tr, bwL);
@@ -301,14 +307,15 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
             // eq_input[i] = TR_output[i] & mask_TR_sub_1;
         }
     }
-
+    uint64_t TR_wrap_end = iopack->get_comm();
     // comp_eq 得到 eq=1时，值映射到-1，means在中间区间。否则，comp=0，为负值，comp=1为正。comp_eq还需要得到一个wrap
     uint8_t *res_cmp = new uint8_t[dim];
     uint8_t *res_eq = new uint8_t[dim];
 
     // mill_eq->compare_with_eq(res_cmp, res_eq,  comp_eq_input, dim, bwL - h); // res_wrapcomp1是最右边的叶子节点
-
+    uint64_t EReLU_Eq_start = iopack->get_comm();
     EReLU_Eq(input_cut_h, res_cmp, res_eq, dim, bwL - h);
+    uint64_t EReLU_Eq_end = iopack->get_comm();
     for (int i = 0; i < dim; i++)
     {
         std::cout << "res_cmp[" << i << "] = " << static_cast<int>(res_cmp[i]) << std::endl;
@@ -370,6 +377,8 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
                 // std::cout << "i = " << i << ", j = " << j << ", data = " << data[j][i] << std::endl;
             }
         }
+
+    uint64_t two_LUT_start = iopack->get_comm();
     uint64_t *a_bob = new uint64_t[dim];
     if (party == ALICE)
     {
@@ -408,6 +417,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     {                                                                        // party == BOB
         aux->lookup_table<uint64_t>(nullptr, outtrunc_a, b_bob, dim, s, lb); // b_bob是查询到的截距  重要问题，这里的outtrunc应该是两边share加起来，代码里只有Bob的outtrunc check
     }
+    uint64_t two_LUT_end = iopack->get_comm();
     uint64_t *a_alice = new uint64_t[dim];
     uint64_t *b_alice = new uint64_t[dim];
     for (size_t i = 0; i < dim; i++)
@@ -427,25 +437,29 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     {
         msb2[i] = 1;
     }
+    uint64_t hadamard_product_start = iopack->get_comm();
     if (party == ALICE)
     {
+        // prod->hadamard_product_MSB(dim, a_alice, inA, outax, la, bwL, la + bwL, true, true, mode, msb1, msb2);
         prod->hadamard_product(dim, a_alice, inA, outax, la, bwL, la + bwL, true, true, mode, msb1, msb2);
     }
     else
     {
+        // prod->hadamard_product_MSB(dim, a_bob, inB, outax, la, bwL, la + bwL, true, true, mode, msb1, msb2);
         prod->hadamard_product(dim, a_bob, inB, outax, la, bwL, la + bwL, true, true, mode, msb1, msb2);
     }
+    uint64_t hadamard_product_end = iopack->get_comm();
     uint64_t *mid_ax = new uint64_t[dim];
-    if (party == ALICE)
+    uint64_t tr_start = iopack->get_comm();
+
+    // trunc_oracle->truncate_and_reduce(dim, outax, mid_ax, la - 1, bwL + la);
+
+    for (int i = 0; i < dim; i++)
     {
-        // trunc_oracle->truncate(dim, outax, mid_ax, la - 1, bwL + la, true, msb_zero);
-        trunc_oracle->truncate_and_reduce(dim, outax, mid_ax, la - 1, bwL + la);
+        mid_ax[i] = (outax[i]>> (la - 1)) & mask_bwL;
     }
-    else
-    {
-        // trunc_oracle->truncate(dim, outax, mid_ax, la - 1, bwL + la, true, msb_zero);
-        trunc_oracle->truncate_and_reduce(dim, outax, mid_ax, la - 1, bwL + la);
-    }
+
+    uint64_t tr_end = iopack->get_comm();
     for (int i = 0; i < dim; i++)
     {
         // std ::cout << "outax[" << i << "] = " << outax[i] << std::endl;
@@ -477,30 +491,31 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         }
         ext->s_extend_msb(dim, b_bob, b_SExt, lb, bwL, msb_b_extend);
     }
+    uint64_t s_extend_comm_end = iopack->get_comm();
     std::cout << "\n=========STEP??  ===========" << std::endl;
     uint64_t *z = new uint64_t[dim];
     for (int i = 0; i < dim; i++)
     {
         z[i] = ((outax[i] + b_SExt[i] * static_cast<uint64_t>(std::pow(2, f - lb + 1))) & mask_bwL);
     }
-    if (party == ALICE)
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            std::cout << "b_alice[" << i << "] = " << b_alice[i] << std::endl;
-            std::cout << "outax[" << i << "] = " << outax[i] << std::endl;
-            std::cout << "b_SExt[" << i << "] = " << (b_SExt[i] * static_cast<uint64_t>(std::pow(2, f - lb + 1)) & mask_bwL) << std::endl;
-        }
-    }
-    else
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            std::cout << "b_bob[" << i << "] = " << b_bob[i] << std::endl;
-            std::cout << "outax[" << i << "] = " << outax[i] << std::endl;
-            std::cout << "b_SExt[" << i << "] = " << (b_SExt[i] * static_cast<uint64_t>(std::pow(2, f - lb + 1)) & mask_bwL) << std::endl;
-        }
-    }
+    // if (party == ALICE)
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         std::cout << "b_alice[" << i << "] = " << b_alice[i] << std::endl;
+    //         std::cout << "outax[" << i << "] = " << outax[i] << std::endl;
+    //         std::cout << "b_SExt[" << i << "] = " << (b_SExt[i] * static_cast<uint64_t>(std::pow(2, f - lb + 1)) & mask_bwL) << std::endl;
+    //     }
+    // }
+    // else
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         std::cout << "b_bob[" << i << "] = " << b_bob[i] << std::endl;
+    //         std::cout << "outax[" << i << "] = " << outax[i] << std::endl;
+    //         std::cout << "b_SExt[" << i << "] = " << (b_SExt[i] * static_cast<uint64_t>(std::pow(2, f - lb + 1)) & mask_bwL) << std::endl;
+    //     }
+    // }
 
     // 判断区间
     uint64_t *y = new uint64_t[dim];
@@ -522,7 +537,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
             neg1[i] = 0;
         }
     }
-
+    uint64_t two_select_share_start = iopack->get_comm();
     if (party == ALICE)
     {
         select_share(res_cmp,  inA,z , non_negative1_part, dim, bwL);
@@ -545,6 +560,10 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     }
 
     select_share(choose_negative_part, non_negative1_part, neg1, y, dim, bwL);
+    uint64_t two_select_share_end = iopack->get_comm();
+    
+    uint64_t Comm_end = iopack->get_comm();
+
 
     // for (int i = 0; i < dim; i++)
     // {
@@ -599,7 +618,19 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         std::cout << "max_val: " << max_val << std::endl;
         std::cout << "min_val: " << min_val << std::endl;
     }
-
+        cout << "TR_wrap Sent: " << (TR_wrap_end - TR_wrap_start) / dim * 8 << " bits" << endl;
+    cout << "EReLU_Eq Sent: " << (EReLU_Eq_end - EReLU_Eq_start) / dim * 8 << " bits" << endl;
+    cout << "Two LUT Sent: " << (two_LUT_end - two_LUT_start) / dim * 8 << " bits" << endl;
+    cout << "Hadamard Product Sent: " << (hadamard_product_end - hadamard_product_start) / dim * 8 << " bits" << endl;
+    cout << "S Extend Sent: " << (s_extend_comm_end - s_extend_comm_start) / dim * 8 << " bits" << endl;
+    cout << "TR Sent: " << (tr_end - tr_start) / dim * 8 << " bits" << endl;
+    cout << "Two Select Share Sent: " << (two_select_share_end - two_select_share_start) / dim * 8 << " bits" << endl;
+    cout << "Total Bytes Sent: " << (Comm_end - Comm_start) / dim * 8 << " bits" << endl;
+    // comp_eq w 
+    // AND - 128 - \eplison (128 - 20)
+    // LUT - 256
+    // LUT - s
+    cout << "Total Bytes Sent: " << (Comm_end - Comm_start) / dim * 8 - 64 - 128<< " bits" << endl;
     delete[] inA;
     delete[] inB;
     delete[] outax;
@@ -644,6 +675,7 @@ int main(int argc, char **argv)
     }
 
     for (uint64_t i = 8; i < 9; i++)
+    // for (uint64_t i = 6; i < 7; i++)
     {
 
         for (uint64_t j = 8; j < 9; j++)

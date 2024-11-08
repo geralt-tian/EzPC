@@ -55,6 +55,7 @@ uint64_t s = 6;
 Truncation *trunc_oracle;
 AuxProtocols *aux;
 MillionaireWithEquality *mill_eq;
+MillionaireProtocol *mill;
 //////////////////////
 // 初始化
 ///////////////////////////////
@@ -66,7 +67,7 @@ int main(int argc, char **argv)
     uint8_t acc = 1;
     uint64_t init_input = 0;
     uint64_t step_size = 2;
-    
+
     amap.arg("r", party, "Role of party: ALICE = 1; BOB = 2");
     amap.arg("p", port, "Port Number");
     amap.arg("ip", address, "IP Address of server (ALICE)");
@@ -81,11 +82,12 @@ int main(int argc, char **argv)
     std::cout << "Parsed dimension (dim) = " << dim << std::endl;
     iopack = new IOPack(party, port, "127.0.0.1");
     otpack = new OTPack(iopack, party);
-mill_eq = new MillionaireWithEquality(party, iopack, otpack);
+    mill_eq = new MillionaireWithEquality(party, iopack, otpack);
     uint64_t comm_start = iopack->get_comm();
 
     prod = new LinearOT(party, iopack, otpack);
-
+    aux = new AuxProtocols(party, iopack, otpack);
+    mill = new MillionaireProtocol(party, iopack, otpack);
     uint64_t *inA = new uint64_t[dim];
     uint64_t *inB = new uint64_t[dim];
 
@@ -96,8 +98,6 @@ mill_eq = new MillionaireWithEquality(party, iopack, otpack);
         inB[i] = init_input + i * step_size;
     }
 
-    
-
     uint8_t *Drelu = new uint8_t[dim];
     uint8_t *msbA = new uint8_t[dim];
     uint8_t *msbB = new uint8_t[dim];
@@ -106,11 +106,20 @@ mill_eq = new MillionaireWithEquality(party, iopack, otpack);
     uint8_t *wrap = new uint8_t[dim];
     uint64_t STEP3_comm_start = iopack->get_comm();
     // Drelu = MSB , Alice ^1
-    int cmpbwl[] = {6, 7, 8, 9, 10, 11, 20};
+    int cmpbwl[21];
+    for (int i = 0; i < 21; i++) {
+        cmpbwl[i] = i + 1;
+    }
+    int size = sizeof(cmpbwl) / sizeof(cmpbwl[0]);
     // auto Total_time;
     int flag = 0;
     auto Total_time = 0.2;
-    for (int i = 0; i < 7; i++)
+    uint8_t *y = new uint8_t[dim];
+    uint8_t *res_wrapcomp1 = new uint8_t[dim];
+    uint8_t *res_wrapcomp2 = new uint8_t[dim];
+    uint8_t *res_wrapeq2 = new uint8_t[dim];
+
+    for (int i = 0; i < size; i++)
     {
         int bitwidth = cmpbwl[i];
 
@@ -121,24 +130,30 @@ mill_eq = new MillionaireWithEquality(party, iopack, otpack);
             {
                 // prod->aux->MSB(inA, msbA, dim, bwL);
                 flag++;
-                // prod->aux->mill->compare(msbA, inA, dim, bitwidth, true, false, j + 3);
+                // aux->mill->compare_eight_bit_wrap(y, res_wrapcomp1, res_wrapcomp2, res_wrapeq2, inA, dim, bitwidth, true, false, j + 3);
+                prod->aux->mill->compare(msbA, inA, dim, bitwidth, true, false, j + 3);
+                // mill_eq->compare_with_eq(res_cmp,res_eq,inA, dim, bitwidth, true,  j + 3);
 
-                mill_eq->compare_with_eq(res_cmp,res_eq,inA, dim, bitwidth, true,  j + 3);
-                
                 // uint64_t STEP3_comm_end = iopack->get_comm();
             }
             else
             {
 
-
                 // prod->aux->MSB(inB, msbB, dim, bwL);
                 auto time_start = chrono::high_resolution_clock::now();
-                // prod->aux->mill->compare(msbA, inB, dim, bitwidth, true, false, j + 3);
-                mill_eq->compare_with_eq(res_cmp,res_eq, inB, dim, bitwidth, true,  j + 3);
+                // aux->mill->compare_eight_bit_wrap(y, res_wrapcomp1, res_wrapcomp2, res_wrapeq2, inB, dim, bitwidth, true, false, j + 3);
+                prod->aux->mill->compare(msbA, inB, dim, bitwidth, true, false, j + 3);
+                // mill_eq->compare_with_eq(res_cmp,res_eq, inB, dim, bitwidth, true,  j + 3);
                 auto time_end = chrono::high_resolution_clock::now();
                 Total_time = chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
             }
+            // mill->compare_eight_bit_wrap(y, res_wrapcomp1, res_wrapcomp2, res_wrapeq2, inA, dim, bitwidth, true, false, j + 3);
+
             uint64_t STEP3_comm_end = iopack->get_comm();
+
+            cout << "bitwidth = " << bitwidth << endl;
+            cout << "m  = " << j + 3 << endl;
+            cout << "EReLU_Eq Sent: " << (STEP3_comm_end - STEP3_comm_start) / dim * 8 << " bits" << endl;
 
             if (party == ALICE)
             {

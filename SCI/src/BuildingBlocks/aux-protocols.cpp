@@ -106,36 +106,18 @@ void AuxProtocols::wrap_computation_eight_bit_wrap(uint64_t *x, uint8_t *y,uint6
       tmp_x[i] = (mask - x[i]) & mask; // 2^{bw_x} - 1 - x[i]
   }
 
-  // switch (bw_x)
-  //   {
-  //   case 6:
-  //     mill->compare(y, tmp_x, size, bw_x, true, false, 6); // computing greater_than
-  //     break;
-  //   case 7:                                                // 7-bit
-  //     mill->compare(y, tmp_x, size, bw_x, true, false, 7); // computing greater_than
-  //     break;
-  //   case 8:                                                // 8-bit
-  //     mill->compare(y, tmp_x, size, bw_x, true, false, 7); // computing greater_than
-  //     break;
-  //   case 9:                                                //
-  //     mill->compare(y, tmp_x, size, bw_x, true, false, 5); // computing greater_than
-  //     break;
-  //   case 10:                                               //
-  //     mill->compare(y, tmp_x, size, bw_x, true, false, 5); // computing greater_than
-  //     break;
-  //   case 11:                                               //
-  //     mill->compare(y, tmp_x, size, bw_x, true, false, 6); // computing greater_than
-  //     break;
-  //   case 20:                                               //
-  //     mill->compare(y, tmp_x, size, bw_x, true, false, 7); // computing greater_than
-  //     break;
-  //   default:
-  // uint8_t * eight_bit_wrap = new uint8_t[size];
   uint8_t *res_wrapcomp1 = new uint8_t[size];
   uint8_t *res_wrapcomp2 = new uint8_t[size];
   uint8_t *res_wrapeq2 = new uint8_t[size];
   uint8_t *res_wrap = new uint8_t[size];
-  mill->compare_eight_bit_wrap(y, res_wrapcomp1,res_wrapcomp2,res_wrapeq2, tmp_x, size, bw_x, true); // computing greater_than  
+uint64_t compare_eight_bit_wrap_start = iopack->get_comm();
+  mill->compare_eight_bit_wrap(y, res_wrapcomp1,res_wrapcomp2,res_wrapeq2, tmp_x, size, bw_x, true,false,4); // computing greater_than  
+
+  // mill->compare_eight_bit_wrap(y, res_wrapcomp1,res_wrapcomp2,res_wrapeq2, inB, dim, bitwidth, true,false, j+3);
+
+uint64_t compare_eight_bit_wrap_end = iopack->get_comm();
+  cout << "EReLU_Eq compare_eight_bit_wrap = " << (compare_eight_bit_wrap_end - compare_eight_bit_wrap_start) / size * 8 << " bits" << endl;
+  std::cout << "bw_x[" << 0 << "] = " << bw_x << std::endl;
   //   break;
   // }
       this->AND(res_wrapcomp1,res_wrapeq2 ,  res_wrap, size);
