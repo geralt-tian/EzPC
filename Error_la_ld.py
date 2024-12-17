@@ -176,13 +176,13 @@ def Error_all(C, la, ld, Start, End, N,s):    # 分成N份
     formatted_output = ', '.join(f'{{{a},{d}}}' for a, d in zip(A, D))
     print(formatted_output)
 
-    csv_filename = 'la_ld_s.csv'
+    csv_filename = 'la_ld_s7.csv'
 
 # 写入 CSV 文件
     with open(csv_filename, mode='a', newline='') as file:
         # writer = csv.writer(file)
 
-        file.write(f'la={la},ld={ld},s={s}\n')
+        file.write(f'la={la+1},ld={ld+1},s={s}\n')
 
         file.write(f'std::vector<std::vector<uint64_t>> data = {{{formatted_output}}};\n')
 
@@ -203,9 +203,9 @@ N = pow(2, s)
 csv_filename = 'la_ld_s.csv'
 with open(csv_filename, mode='w', newline='') as file:
     pass
-for la in range(5, 13):  # la 从 5 到 12
-    for lb in range(6, 13):  # lb 从 6 到 12
-        for s in range(6, 8):  # s 从 6 到 7
+for la in range(1, 13):  # la 从 5 到 12
+    for lb in range(1, 13):  # lb 从 6 到 12
+        for s in range(7, 8):  # s 从 6 到 7
             print(f"Executing Error_all with la={la}, lb={lb}, s={s}")
             Error_all(C, la, lb, Start, End, N, s) 
 

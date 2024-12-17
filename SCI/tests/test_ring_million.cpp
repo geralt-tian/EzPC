@@ -8,6 +8,7 @@
 #include <limits>
 #include "float_utils.h"
 
+#include "Millionaire/equality.h"
 #include "Millionaire/millionaire.h"
 #include "Millionaire/millionaire_with_equality.h"
 #include "BuildingBlocks/truncation.h"
@@ -56,6 +57,7 @@ Truncation *trunc_oracle;
 AuxProtocols *aux;
 MillionaireWithEquality *mill_eq;
 MillionaireProtocol *mill;
+Equality *eq;
 //////////////////////
 // 初始化
 ///////////////////////////////
@@ -83,6 +85,7 @@ int main(int argc, char **argv)
     iopack = new IOPack(party, port, "127.0.0.1");
     otpack = new OTPack(iopack, party);
     mill_eq = new MillionaireWithEquality(party, iopack, otpack);
+    eq = new Equality(party, iopack, otpack);
     uint64_t comm_start = iopack->get_comm();
 
     prod = new LinearOT(party, iopack, otpack);
@@ -133,6 +136,7 @@ int main(int argc, char **argv)
                 // aux->mill->compare_eight_bit_wrap(y, res_wrapcomp1, res_wrapcomp2, res_wrapeq2, inA, dim, bitwidth, true, false, j + 3);
                 prod->aux->mill->compare(msbA, inA, dim, bitwidth, true, false, j + 3);
                 // mill_eq->compare_with_eq(res_cmp,res_eq,inA, dim, bitwidth, true,  j + 3);
+                // eq->bitlen_lt_beta(res_eq, inA, dim, bitwidth, true, j + 3);
 
                 // uint64_t STEP3_comm_end = iopack->get_comm();
             }
@@ -144,6 +148,7 @@ int main(int argc, char **argv)
                 // aux->mill->compare_eight_bit_wrap(y, res_wrapcomp1, res_wrapcomp2, res_wrapeq2, inB, dim, bitwidth, true, false, j + 3);
                 prod->aux->mill->compare(msbA, inB, dim, bitwidth, true, false, j + 3);
                 // mill_eq->compare_with_eq(res_cmp,res_eq, inB, dim, bitwidth, true,  j + 3);
+                // eq->bitlen_lt_beta(res_eq, inB, dim, bitwidth, true, j + 3);
                 auto time_end = chrono::high_resolution_clock::now();
                 Total_time = chrono::duration_cast<chrono::microseconds>(time_end - time_start).count();
             }
@@ -167,8 +172,8 @@ int main(int argc, char **argv)
 
                 double Total_MSBytes_BOB = static_cast<double>(STEP3_comm_end - STEP3_comm_start) / dim * 8;
                 double Total_MSBytes = Total_MSBytes_BOB + recv_Total_MSBytes_ALICE;
-
-                std::ofstream csvFile("/home/zhaoqian/EzPC/SCI/tests/auto_compare_eq_test_output.csv", std::ios::app);
+                
+                std::ofstream csvFile("/home/lzq/EzPC/SCI/tests/auto_compare(no_padding)_test_output_320Mbps_80ms.csv", std::ios::app);
 
                 if (!csvFile.is_open())
                 {

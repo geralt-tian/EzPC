@@ -34,8 +34,8 @@ find_dependency(GMP REQUIRED)
 find_dependency(Threads REQUIRED)
 
 set_and_check(INSTALL_DIR "${PACKAGE_PREFIX_DIR}")
-find_dependency(Eigen3 REQUIRED PATHS "/home/zhaoqian/EzPC/SCI/build/../extern/eigen/build" NO_DEFAULT_PATH)
-find_dependency(SEAL REQUIRED PATHS "/home/zhaoqian/EzPC/SCI/build" NO_DEFAULT_PATH)
+find_dependency(Eigen3 REQUIRED PATHS "/home/lzq/EzPC/SCI/build/../extern/eigen/build" NO_DEFAULT_PATH)
+find_dependency(SEAL REQUIRED PATHS "/home/lzq/EzPC/SCI/build" NO_DEFAULT_PATH)
 find_dependency(OpenMP REQUIRED)
 
 # Add the targets file

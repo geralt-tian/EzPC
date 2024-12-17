@@ -555,6 +555,7 @@ public:
   }
 
   void recv_impl(uint8_t *data, uint8_t *b, int length, int l) {
+    // std::cout << "N = " << N <<std::endl;
     assert(N <= lambda && N >= 2);
     assert(l <= 8 && l >= 1);
     // assert(((N*l*length) % 8) == 0);
