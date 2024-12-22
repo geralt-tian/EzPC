@@ -63,11 +63,12 @@ AuxProtocols *aux;
 MillionaireWithEquality *mill_eq;
 Equality *eq;
 
+// int dim = 20000;
 int dim = 1000;
 uint64_t acc = 2;
-// uint64_t init_input = 2070769; //左边区间
-uint64_t init_input = 2095151; // 中间区间
-// uint64_t init_input = 0;  //右边区间
+// uint64_t init_input = 2097000; //左边区间
+// uint64_t init_input = 2097000; // 中间区间
+uint64_t init_input = 0; // 右边区间
 uint64_t step_size = 1;
 uint64_t correct = 1;
 // double calculate_GELU(uint64_t value)
@@ -171,7 +172,7 @@ void select_share(uint8_t *sel, uint64_t *x, uint64_t *y, uint64_t *output, int3
     }
 }
 
-void EReLU_Eq(uint64_t *inA, uint8_t *b, uint8_t *b_, uint64_t dim, uint64_t bwl)
+void DReLU_Eq(uint64_t *inA, uint8_t *b, uint8_t *b_, uint64_t dim, uint64_t bwl)
 {
     uint8_t *m = new uint8_t[dim];
     uint64_t *y = new uint64_t[dim];
@@ -179,6 +180,7 @@ void EReLU_Eq(uint64_t *inA, uint8_t *b, uint8_t *b_, uint64_t dim, uint64_t bwl
     for (int i = 0; i < dim; i++)
     {
         m[i] = inA[i] >> (bwl - 1);
+        // std::cout << "m[" << i << "] = " << static_cast<int>(m[i]) << std::endl;
         y[i] = inA[i] & mask_l_sub1;
     }
     uint64_t *comp_eq_input = new uint64_t[dim];
@@ -198,14 +200,13 @@ void EReLU_Eq(uint64_t *inA, uint8_t *b, uint8_t *b_, uint64_t dim, uint64_t bwl
     }
     uint8_t *carry = new uint8_t[dim];
     uint8_t *res_eq = new uint8_t[dim];
-
-    mill_eq->compare_with_eq(carry, res_eq, comp_eq_input, dim, bwl);
-
+    mill_eq->compare_with_eq(carry, res_eq, comp_eq_input, dim, bwl - 1);
     if (party == ALICE)
     {
         for (int i = 0; i < dim; i++)
         {
-            b[i] = carry[i] ^ 1 ^ m[i];
+            // b[i] = carry[i] ^ 1 ^ m[i];
+            b[i] = carry[i] ^ m[i];
         }
     }
     else
@@ -217,6 +218,21 @@ void EReLU_Eq(uint64_t *inA, uint8_t *b, uint8_t *b_, uint64_t dim, uint64_t bwl
     }
 
     aux->AND(res_eq, m, b_, dim);
+    if (party == ALICE)
+    {
+        for (int i = 0; i < dim; i++)
+        {
+            // b[i] = carry[i] ^ 1 ^ m[i];
+            b[i] = carry[i] ^ m[i] ^ b_[i];
+        }
+    }
+    else
+    {
+        for (int i = 0; i < dim; i++)
+        {
+            b[i] = carry[i] ^ m[i] ^ b_[i];
+        }
+    }
 }
 //////////////////////
 // 初始化
@@ -231,20 +247,59 @@ int first_interval(uint64_t *input_data)
     ext = new XTProtocol(party, iopack, otpack);
     uint64_t *comp_eq_input = new uint64_t[dim];
     uint64_t *outtrunc = new uint64_t[dim];
+    uint64_t *input_data1 = new uint64_t[dim];
     uint8_t *res_cmp = new uint8_t[dim];
     uint8_t *res_eq = new uint8_t[dim];
     // TR
+
+    if (party == ALICE)
+    {
+        for (int i = 0; i < dim; i++)
+        {
+            input_data1[i] = (input_data[i] - alpha) & mask_bwL;
+        }
+    }
     uint64_t Comm_start = iopack->get_comm();
     auto time_start = std::chrono::high_resolution_clock::now();
-    trunc_oracle->truncate_and_reduce(dim, input_data, outtrunc, bwL - d, bwL);
+    uint64_t trun_start = iopack->get_comm();
+    trunc_oracle->truncate_and_reduce(dim, input_data1, outtrunc, d, bwL);
+    uint64_t trun_end = iopack->get_comm();
     // ERELU_EQ
-    EReLU_Eq(outtrunc, res_cmp, res_eq, dim, bwL - d);
+    uint64_t mask_l_sub1 = ((bwL - d - 1) == 64) ? ~0ULL : (1ULL << (bwL - d - 1)) - 1;
+    // auto time_start = std::chrono::high_resolution_clock::now();
+    if (party == ALICE)
+    {
+        for (int i = 0; i < dim; i++)
+        {
+            comp_eq_input[i] = (mask_l_sub1 - outtrunc[i]) & mask_l_sub1;
+        }
+    }
+    else
+    {
+        for (int i = 0; i < dim; i++)
+        {
+            comp_eq_input[i] = outtrunc[i] & mask_l_sub1;
+        }
+    }
+    uint64_t compare_with_eq_start = iopack->get_comm();
+    mill_eq->compare_with_eq(res_cmp, res_eq, comp_eq_input, dim, bwL - d); //
+    uint64_t compare_with_eq_end = iopack->get_comm();
     auto time_end = std::chrono::high_resolution_clock::now();
     uint64_t Comm_end = iopack->get_comm();
 
     std::cout << "Comm = " << (Comm_end - Comm_start) / dim * 8 << std::endl;
+    std::cout << "Truncation = " << (trun_end - trun_start) / dim * 8 << std::endl;
+    std::cout << "Compare_with_eq = " << (compare_with_eq_end - compare_with_eq_start) / dim * 8 << std::endl;
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
     std::cout << "Time elapsed: " << duration << " microseconds" << std::endl;
+
+    // for (int i = 0; i < dim; i++)
+    // {
+
+    //     std::cout << "outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
+    //     std::cout << "res_cmp[" << i << "] = " << static_cast<int>(res_cmp[i]) << std::endl;
+    //     std::cout << "res_eq[" << i << "] = " << static_cast<int>(res_eq[i])<< "\n"<< std::endl;
+    // }
     // for (int i = 0; i < dim; i++)
     // {
     //     std::cout << "res_cmp[" << i << "] = " << static_cast<int>(res_cmp[i]) << std::endl;
@@ -268,38 +323,46 @@ int second_interval(uint64_t *input_data)
     // TR
     uint64_t Comm_start = iopack->get_comm();
     auto time_start = std::chrono::high_resolution_clock::now();
-    if (party == ALICE)
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            input_data[i] = (input_data[i] - alpha) & mask_bwL;
-        }
-    }
-    trunc_oracle->truncate_and_reduce(dim, input_data, outtrunc, bwL - d - 1, bwL);
-
+    // if (party == ALICE)
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         input_data[i] = (input_data[i] - alpha) & mask_bwL;
+    //     }
+    // }
+    uint64_t trun_start = iopack->get_comm();
+    trunc_oracle->truncate_and_reduce(dim, input_data, outtrunc, d, bwL); // test comm
+    uint64_t trun_end = iopack->get_comm();
     // ERELU_EQ
-    EReLU_Eq(outtrunc, res_cmp, res_drelu_eq, dim, bwL - d - 1);
+    // auto time_start = std::chrono::high_resolution_clock::now();
+    uint64_t DReLU_Eq_start = iopack->get_comm();
+    DReLU_Eq(outtrunc, res_cmp, res_drelu_eq, dim, bwL - d);
+    uint64_t DReLU_Eq_end = iopack->get_comm();
+    // auto time_end = std::chrono::high_resolution_clock::now();
 
-    uint64_t addfor = static_cast<uint64_t>(pow(2, bwL - d - 1));
-    for (int i = 0; i < dim; i++)
-    {
-        comp_eq_input[i] = (addfor + outtrunc[i]) & mask_bwL; // 这里应该mod 多少？
-    }
-    eq->check_equality(res_eq, comp_eq_input, dim, bwL - d - 1);
+    // uint64_t addfor = static_cast<uint64_t>(pow(2, bwL - d));
+    // for (int i = 0; i < dim; i++)
+    // {
+    //     comp_eq_input[i] = (addfor + outtrunc[i]) & mask_bwL; // 这里应该mod 多少？
+    // }
 
     auto time_end = std::chrono::high_resolution_clock::now();
     uint64_t Comm_end = iopack->get_comm();
     std::cout << "Comm = " << (Comm_end - Comm_start) / dim * 8 << std::endl;
+    std::cout << "Truncation = " << (trun_end - trun_start) / dim * 8 << std::endl;
+    std::cout << "DReLU_Eq = " << (DReLU_Eq_end - DReLU_Eq_start) / dim * 8 << std::endl;
+
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
     std::cout << "Time elapsed: " << duration << " microseconds" << std::endl;
     // for (int i = 0; i < dim; i++)
     // {
+    //     std::cout << "outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
     //     std::cout << "res_cmp[" << i << "] = " << static_cast<int>(res_cmp[i]) << std::endl;
+    //     std::cout << "res_drelu_eq[" << i << "] = " << static_cast<int>(res_drelu_eq[i]) << std::endl; // right
     // }
 
     return 1;
 }
-
 
 int third_interval(uint64_t *input_data)
 {
@@ -310,27 +373,69 @@ int third_interval(uint64_t *input_data)
     ext = new XTProtocol(party, iopack, otpack);
     uint64_t *comp_eq_input = new uint64_t[dim];
     uint64_t *outtrunc = new uint64_t[dim];
-    uint8_t *res_cmp = new uint8_t[dim];
+    uint8_t *res_drelu_cmp = new uint8_t[dim];
     uint8_t *res_drelu_eq = new uint8_t[dim];
     uint8_t *res_eq = new uint8_t[dim];
+    uint8_t *res_cmp = new uint8_t[dim];
     // TR
     uint64_t Comm_start = iopack->get_comm();
     auto time_start = std::chrono::high_resolution_clock::now();
-    trunc_oracle->truncate_and_reduce(dim, input_data, outtrunc, bwL - d, bwL);
-
+    // if (party == ALICE)
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         input_data[i] = (input_data[i] - alpha) & mask_bwL;
+    //     }
+    // }
+    uint64_t trun_start = iopack->get_comm();
+    trunc_oracle->truncate_and_reduce(dim, input_data, outtrunc, d, bwL); // test comm
+    uint64_t trun_end = iopack->get_comm();
     // ERELU_EQ
-    EReLU_Eq(outtrunc, res_cmp, res_drelu_eq, dim, bwL - d);
+    // auto time_start = std::chrono::high_resolution_clock::now();
+    uint64_t DReLU_Eq_start = iopack->get_comm();
+    DReLU_Eq(outtrunc, res_drelu_cmp, res_drelu_eq, dim, bwL - d);
+    uint64_t DReLU_Eq_end = iopack->get_comm();
+    // auto time_end = std::chrono::high_resolution_clock::now();
 
-    eq->check_equality(res_eq, outtrunc, dim, bwL - d);
-
+    // uint64_t addfor = static_cast<uint64_t>(pow(2, bwL - d));
+    // for (int i = 0; i < dim; i++)
+    // {
+    //     comp_eq_input[i] = (addfor + outtrunc[i]) & mask_bwL; // 这里应该mod 多少？
+    // }
+    uint64_t mask_l_sub1 = ((bwL - d - 1) == 64) ? ~0ULL : (1ULL << (bwL - d - 1)) - 1;
+    // auto time_start = std::chrono::high_resolution_clock::now();
+    if (party == ALICE)
+    {
+        for (int i = 0; i < dim; i++)
+        {
+            comp_eq_input[i] = (mask_l_sub1 - outtrunc[i]) & mask_l_sub1;
+        }
+    }
+    else
+    {
+        for (int i = 0; i < dim; i++)
+        {
+            comp_eq_input[i] = outtrunc[i] & mask_l_sub1;
+        }
+    }
+    // uint64_t compare_with_eq_start = iopack->get_comm();
+    mill_eq->compare_with_eq(res_cmp, res_eq, comp_eq_input, dim, bwL - d); //
+    // uint64_t compare_with_eq_end = iopack->get_comm();
     auto time_end = std::chrono::high_resolution_clock::now();
+
+    // auto time_end = std::chrono::high_resolution_clock::now();
     uint64_t Comm_end = iopack->get_comm();
     std::cout << "Comm = " << (Comm_end - Comm_start) / dim * 8 << std::endl;
+    std::cout << "Truncation = " << (trun_end - trun_start) / dim * 8 << std::endl;
+    std::cout << "DReLU_Eq = " << (DReLU_Eq_end - DReLU_Eq_start) / dim * 8 << std::endl;
+
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
     std::cout << "Time elapsed: " << duration << " microseconds" << std::endl;
     // for (int i = 0; i < dim; i++)
     // {
+    //     std::cout << "outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
     //     std::cout << "res_cmp[" << i << "] = " << static_cast<int>(res_cmp[i]) << std::endl;
+    //     std::cout << "res_drelu_eq[" << i << "] = " << static_cast<int>(res_drelu_eq[i]) << std::endl; // right
     // }
 
     return 1;
@@ -427,9 +532,9 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     uint8_t *res_eq = new uint8_t[dim];
 
     // mill_eq->compare_with_eq(res_cmp, res_eq,  comp_eq_input, dim, bwL - h); // res_wrapcomp1是最右边的叶子节点
-    uint64_t EReLU_Eq_start = iopack->get_comm();
-    EReLU_Eq(input_cut_h, res_cmp, res_eq, dim, bwL - h);
-    uint64_t EReLU_Eq_end = iopack->get_comm();
+    uint64_t DReLU_Eq_start = iopack->get_comm();
+    DReLU_Eq(input_cut_h, res_cmp, res_eq, dim, bwL - h);
+    uint64_t DReLU_Eq_end = iopack->get_comm();
     for (int i = 0; i < dim; i++)
     {
         std::cout << "res_cmp[" << i << "] = " << static_cast<int>(res_cmp[i]) << std::endl;
@@ -732,7 +837,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         std::cout << "min_val: " << min_val << std::endl;
     }
     cout << "TR_wrap Sent: " << (TR_wrap_end - TR_wrap_start) / dim * 8 << " bits" << endl;
-    cout << "EReLU_Eq Sent: " << (EReLU_Eq_end - EReLU_Eq_start) / dim * 8 << " bits" << endl;
+    cout << "EReLU_Eq Sent: " << (DReLU_Eq_end - DReLU_Eq_start) / dim * 8 << " bits" << endl;
     cout << "Two LUT Sent: " << (two_LUT_end - two_LUT_start) / dim * 8 << " bits" << endl;
     cout << "Hadamard Product Sent: " << (hadamard_product_end - hadamard_product_start) / dim * 8 << " bits" << endl;
     cout << "S Extend Sent: " << (s_extend_comm_end - s_extend_comm_start) / dim * 8 << " bits" << endl;
@@ -775,7 +880,7 @@ int main(int argc, char **argv)
     prod = new LinearOT(party, iopack, otpack);
 
     uint64_t *inB = new uint64_t[dim]; // Declare the variable "inB"
-
+    std::cout << "first_interval :" << std::endl;
     for (int i = 0; i < dim; i++)
     {
         inA[i] = (0 + i * 0) & mask_bwL;
@@ -783,22 +888,44 @@ int main(int argc, char **argv)
     }
     if (party == ALICE)
     {
+
         first_interval(inA);
     }
     else
     {
+        inB[0] = 2097152 - 17000;
+        inB[1] = 2097152 - 1;
+        inB[2] = 0;
         first_interval(inB);
     }
 
+    //     if (party == ALICE)
+    // {
+
+    //     first_interval(inA);
+    // }
+    // else
+    // {
+    //     first_interval(inB);
+    // }
+    std::cout << "second_interval :" << std::endl;
     if (party == ALICE)
     {
+        for (int i = 0; i < dim; i++)
+        {
+            // std::cout << "inA[" << i << "] = " << inA[i] << std::endl;
+        }
         second_interval(inA);
     }
     else
     {
+        for (int i = 0; i < dim; i++)
+        {
+            // std::cout << "inB[" << i << "] = " << inB[i] << std::endl;
+        }
         second_interval(inB);
     }
-
+    std::cout << "third_interval :" << std::endl;
     if (party == ALICE)
     {
         third_interval(inA);
