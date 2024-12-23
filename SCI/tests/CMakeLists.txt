@@ -52,6 +52,7 @@ add_test_OT(max_distance)
 add_test_OT(threeinterval)
 add_test_OT(million)
 add_test_OT(12_22_GELU_final)
+add_test_OT(12_23_ELU_final)
 
 add_test_HE(relu)
 add_test_HE(maxpool)
