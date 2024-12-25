@@ -27,13 +27,13 @@ SOFTWARE.
 using namespace sci;
 using namespace std;
 
-#define MAX_THREADS 4
+#define MAX_THREADS 1
 
 int party, port = 32000;
-int num_threads = 4;
+int num_threads = 1;
 string address = "127.0.0.1";
 
-int dim = 10000;
+int dim = 4096*8;
 int bw_x = 16;
 int bw_y = 16;
 int s_x = 12;
@@ -99,11 +99,20 @@ int main(int argc, char **argv) {
   uint64_t *x = new uint64_t[dim];
   uint64_t *y = new uint64_t[dim];
 
-  prg.random_data(x, dim * sizeof(uint64_t));
+  // prg.random_data(x, dim * sizeof(uint64_t));
 
-  for (int i = 0; i < dim; i++) {
-    x[i] &= mask_x;
+  if (party == ALICE)
+  {
+    for (int i = 0; i < dim; i++) 
+    x[i] = 0 ;
   }
+  else
+  {
+      for (int i = 0; i < dim; i++) {
+    x[i] = (dim - 16383) & mask_x;
+  }
+  }
+
 
   /************** Fork Threads ****************/
   /********************************************/

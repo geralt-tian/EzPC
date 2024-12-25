@@ -249,8 +249,8 @@ int second_interval(uint64_t *input_data, uint8_t *res_drelu_cmp, uint8_t *res_d
     // uint8_t *res_drelu_eq = new uint8_t[dim];
     uint8_t *res_eq = new uint8_t[dim];
     // TR
-    uint64_t Comm_start = iopack->get_comm();
-    auto time_start = std::chrono::high_resolution_clock::now();
+    // uint64_t Comm_start = iopack->get_comm();
+    // auto time_start = std::chrono::high_resolution_clock::now();
     // if (party == ALICE)
     // {
     //     for (int i = 0; i < dim; i++)
@@ -276,12 +276,12 @@ int second_interval(uint64_t *input_data, uint8_t *res_drelu_cmp, uint8_t *res_d
 
     auto time_end = std::chrono::high_resolution_clock::now();
     uint64_t Comm_end = iopack->get_comm();
-    std::cout << "Comm = " << (Comm_end - Comm_start) / dim * 8 << std::endl;
+    // std::cout << "Comm = " << (Comm_end - Comm_start) / dim * 8 << std::endl;
     std::cout << "Truncation = " << (trun_end - trun_start) / dim * 8 << std::endl;
     std::cout << "DReLU_Eq = " << (DReLU_Eq_end - DReLU_Eq_start) / dim * 8 << std::endl;
 
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
-    std::cout << "Time elapsed: " << duration << " microseconds" << std::endl;
+    // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
+    // std::cout << "Time elapsed: " << duration << " microseconds" << std::endl;
     // for (int i = 0; i < dim; i++)
     // {
     //     std::cout << "outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
@@ -369,16 +369,16 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     
 
     uint64_t TR_wrap_start = iopack->get_comm();
-    if (party == ALICE)
-    {
-        // trunc_oracle->truncate_and_reduce_eight_bit_wrap(dim, inA, input_cut_h, eight_bit_wrap, tr, bwL); //step 7 tr
-        trunc_oracle->truncate_and_reduce(dim, inB, input_cut_h, tr, bwL); //step 7 tr
-    }
-    else
-    {
-        // trunc_oracle->truncate_and_reduce_eight_bit_wrap(dim, inB, input_cut_h, eight_bit_wrap, tr, bwL);
-        trunc_oracle->truncate_and_reduce(dim, inB, input_cut_h, tr, bwL);
-    }
+    // if (party == ALICE)
+    // {
+    //     // trunc_oracle->truncate_and_reduce_eight_bit_wrap(dim, inA, input_cut_h, eight_bit_wrap, tr, bwL); //step 7 tr
+    //     trunc_oracle->truncate_and_reduce(dim, inB, input_cut_h, tr, bwL); //step 7 tr
+    // }
+    // else
+    // {
+    //     // trunc_oracle->truncate_and_reduce_eight_bit_wrap(dim, inB, input_cut_h, eight_bit_wrap, tr, bwL);
+    //     trunc_oracle->truncate_and_reduce(dim, inB, input_cut_h, tr, bwL);
+    // }
     uint64_t TR_wrap_end = iopack->get_comm();
 
 
@@ -397,7 +397,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         // std::cout << "input_lower_h[" << i << "] = " << input_lower_h[i] << std::endl;
     }
 
-    trunc_oracle->truncate_and_reduce(dim, input_lower_h, outtrunc, h - s, h); // 这个不需要tr，可以本地截断加wrap，wrap上一步已经算好了
+    trunc_oracle->truncate_and_reduce(dim, input_lower_h, outtrunc, h - s, h); // step 7 tr
 
 
     for (int i = 0; i < dim; i++)
@@ -468,7 +468,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     //     }
     if (party == ALICE)
     {
-        aux->lookup_table<uint64_t>(spec_b, nullptr, nullptr, dim, s, lb);
+        aux->lookup_table<uint64_t>(spec_b, nullptr, nullptr, dim, s, lb); // step 8
     }
     else
     {                                                                        // party == BOB
@@ -509,12 +509,12 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     uint64_t *mid_ax = new uint64_t[dim];
     uint64_t tr_start = iopack->get_comm();
 
-    // trunc_oracle->truncate_and_reduce(dim, outax, mid_ax, la - 1, bwL + la); // step 10 tr
+    trunc_oracle->truncate_and_reduce(dim, outax, mid_ax, la - 1, bwL + la); // step 10 tr
 
-    for (int i = 0; i < dim; i++)
-    {
-        mid_ax[i] = (outax[i] >> (la - 1)) & mask_bwL;
-    }
+    // for (int i = 0; i < dim; i++)
+    // {
+    //     mid_ax[i] = (outax[i] >> (la - 1)) & mask_bwL;// step 10 tr
+    // }
 
     uint64_t tr_end = iopack->get_comm();
     for (int i = 0; i < dim; i++)

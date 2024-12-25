@@ -761,44 +761,44 @@ int main(int argc, char **argv)
     uint8_t *Drelu_ = new uint8_t[dim];
     uint8_t *DreluMSB = new uint8_t[dim];
     uint64_t STEP14_comm_start = iopack->get_comm();
-    if (party == ALICE)
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            EMUX_output_x[i] = (EMUX_output_x[i] - alpha) & mask_bwL;
-            // std::cout << "EMUX_output_x[" << i << "] A =  " << EMUX_output_x[i] << std::endl;
-            EMUX_output_x[i] = (EMUX_output_x[i] >> Tk) & mask_l_Tk;
-            // std::cout << "EMUX_output_x[" << i << "] A trun =  " << EMUX_output_x[i] << std::endl;
-        }
-        prod->aux->MSBsec(EMUX_output_x, DreluMSB, dim, bwL - Tk);
-    }
-    else
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            // std::cout << "EMUX_output_x[" << i << "] B =  " << EMUX_output_x[i] << std::endl;
-            EMUX_output_x[i] = (EMUX_output_x[i] >> Tk) & mask_l_Tk;
-            // std::cout << "EMUX_output_x[" << i << "] B trun =  " << EMUX_output_x[i] << std::endl;
-        }
+    // if (party == ALICE)
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         EMUX_output_x[i] = (EMUX_output_x[i] - alpha) & mask_bwL;
+    //         // std::cout << "EMUX_output_x[" << i << "] A =  " << EMUX_output_x[i] << std::endl;
+    //         EMUX_output_x[i] = (EMUX_output_x[i] >> Tk) & mask_l_Tk;
+    //         // std::cout << "EMUX_output_x[" << i << "] A trun =  " << EMUX_output_x[i] << std::endl;
+    //     }
+    //     prod->aux->MSBsec(EMUX_output_x, DreluMSB, dim, bwL - Tk);
+    // }
+    // else
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         // std::cout << "EMUX_output_x[" << i << "] B =  " << EMUX_output_x[i] << std::endl;
+    //         EMUX_output_x[i] = (EMUX_output_x[i] >> Tk) & mask_l_Tk;
+    //         // std::cout << "EMUX_output_x[" << i << "] B trun =  " << EMUX_output_x[i] << std::endl;
+    //     }
 
-        // prod->aux->MSB(EMUX_output_x, DreluMSB, dim, bwL);
-        prod->aux->MSBsec(EMUX_output_x, DreluMSB, dim, bwL - Tk);
-    }
+    //     // prod->aux->MSB(EMUX_output_x, DreluMSB, dim, bwL);
+    //     prod->aux->MSBsec(EMUX_output_x, DreluMSB, dim, bwL - Tk);
+    // }
 
-    if (party == ALICE)
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            Drelu_[i] = DreluMSB[i] ^ 1;
-        }
-    }
-    else
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            Drelu_[i] = DreluMSB[i];
-        }
-    }
+    // if (party == ALICE)
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         Drelu_[i] = DreluMSB[i] ^ 1;
+    //     }
+    // }
+    // else
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         Drelu_[i] = DreluMSB[i];
+    //     }
+    // }
     uint64_t STEP14_comm_end = iopack->get_comm();
     std::cout << "\n=========STEP15 get x_half ===========" << std::endl;
     int64_t STEP15_comm_start = iopack->get_comm();
@@ -840,7 +840,7 @@ int main(int argc, char **argv)
         {
             neg_abs_xhalf[i] = -abs_xhalf[i] & mask_bwL;
         }
-        select_share(Drelu, abs_xhalf, neg_abs_xhalf, xhalf, dim, bwL);//step 10 ss
+        select_share(Drelu, abs_xhalf, neg_abs_xhalf, xhalf, dim, bwL);//step 22 ss
     }
     else
     {

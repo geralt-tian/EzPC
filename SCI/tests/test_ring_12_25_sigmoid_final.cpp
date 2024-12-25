@@ -248,8 +248,8 @@ int third_interval(uint64_t *input_data, uint8_t *res_drelu_cmp, uint8_t *res_dr
     // uint8_t *res_eq = new uint8_t[dim];
     uint8_t *res_cmp = new uint8_t[dim];
     // TR
-    uint64_t Comm_start = iopack->get_comm();
-    auto time_start = std::chrono::high_resolution_clock::now();
+    // uint64_t Comm_start = iopack->get_comm();
+    // auto time_start = std::chrono::high_resolution_clock::now();
     // if (party == ALICE)
     // {
     //     for (int i = 0; i < dim; i++)
@@ -296,12 +296,12 @@ int third_interval(uint64_t *input_data, uint8_t *res_drelu_cmp, uint8_t *res_dr
 
     // auto time_end = std::chrono::high_resolution_clock::now();
     uint64_t Comm_end = iopack->get_comm();
-    std::cout << "Comm = " << (Comm_end - Comm_start) / dim * 8 << std::endl;
-    std::cout << "Truncation = " << (trun_end - trun_start) / dim * 8 << std::endl;
-    std::cout << "DReLU_Eq = " << (DReLU_Eq_end - DReLU_Eq_start) / dim * 8 << std::endl;
+    // std::cout << "Comm = " << (Comm_end - Comm_start) / dim * 8 << std::endl;
+    // std::cout << "Truncation = " << (trun_end - trun_start) / dim * 8 << std::endl;
+    // std::cout << "DReLU_Eq = " << (DReLU_Eq_end - DReLU_Eq_start) / dim * 8 << std::endl;
 
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
-    std::cout << "Time elapsed: " << duration << " microseconds" << std::endl;
+    // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
+    // std::cout << "Time elapsed: " << duration << " microseconds" << std::endl;
     // for (int i = 0; i < dim; i++)
     // {
     //     std::cout << "outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
@@ -426,22 +426,22 @@ int main(int argc, char **argv)
 
     trunc_oracle = new Truncation(party, iopack, otpack);
     uint64_t *outtrunc = new uint64_t[dim];
-    uint8_t *wrap_ = new uint8_t[dim];
-    // if(acc==2){
-    if (party == ALICE)
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            wrap_[i] = (wrap[i] ^ Drelu[i] ^ 1) & 1;
-        }
-    }
-    else
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            wrap_[i] = (wrap[i] ^ Drelu[i]) & 1;
-        }
-    }
+    // uint8_t *wrap_ = new uint8_t[dim];
+    // // if(acc==2){
+    // if (party == ALICE)
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         wrap_[i] = (wrap[i] ^ Drelu[i] ^ 1) & 1;
+    //     }
+    // }
+    // else
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         wrap_[i] = (wrap[i] ^ Drelu[i]) & 1;
+    //     }
+    // }
 
     ////////////////////////////////////////////////////////
     uint64_t *EMUX_output_x1_h = new uint64_t[dim];
@@ -739,7 +739,7 @@ int main(int argc, char **argv)
         {
             msb_b_extend[i] = 1;
             b_alice[i] = (b_alice[i] ) & mask_lb;
-            std::cout << "b_alice[" << i << "] = " << b_alice[i] << std::endl;
+            // std::cout << "b_alice[" << i << "] = " << b_alice[i] << std::endl;
         }
         ext->s_extend(dim, b_alice, b_SExt, lb, bwL, msb_b_extend);
         
@@ -752,7 +752,7 @@ int main(int argc, char **argv)
         {
             msb_b_extend[i] = 1;
             b_bob[i] = (b_bob[i] ) & mask_lb;
-            std::cout << "b_bob[" << i << "] = " << b_bob[i] << std::endl;
+            // std::cout << "b_bob[" << i << "] = " << b_bob[i] << std::endl;
         }
         ext->s_extend(dim, b_bob, b_SExt, lb, bwL, msb_b_extend);
         // std::cout << "b_alice[" << 0 << "] = " << b_alice[0] << std::endl;
@@ -766,17 +766,17 @@ int main(int argc, char **argv)
     std::cout << "\n=========STEP12 Caculate z=ax+b   ===========" << std::endl;
     uint64_t *z = new uint64_t[dim];
 
-    for (int i = 0; i < dim; i++)
-    {
-        std::cout << "b_SExt[" << i << "] = " << b_SExt[i] << std::endl;
-        std::cout << "outax[" << i << "] = " << outax[i] << std::endl;
-    }
+    // for (int i = 0; i < dim; i++)
+    // {
+    //     std::cout << "b_SExt[" << i << "] = " << b_SExt[i] << std::endl;
+    //     std::cout << "outax[" << i << "] = " << outax[i] << std::endl;
+    // }
     // std::cout << "outax[" << 0 << "] = " << outax[0] << std::endl;
     uint64_t mask_d = (f + 1 == 64 ? -1 : ((1ULL << f + 1) - 1));
     for (int i = 0; i < dim; i++)
     {
         z[i] = ((outax[i] + b_SExt[i] * static_cast<uint64_t>(std::pow(2, f - lb + 1))) & mask_bwL); // step 18 add
-        std::cout << "z[" << i << "] = " << z[i] << std::endl;
+        // std::cout << "z[" << i << "] = " << z[i] << std::endl;
     }
 
     std::cout << "\n=========STEP14 Drelu |x|-a  to learn b' ===========" << std::endl;
@@ -784,44 +784,44 @@ int main(int argc, char **argv)
     uint8_t *Drelu_ = new uint8_t[dim];
     uint8_t *DreluMSB = new uint8_t[dim];
     uint64_t STEP14_comm_start = iopack->get_comm();
-    if (party == ALICE)
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            EMUX_output_x[i] = (EMUX_output_x[i] - alpha) & mask_bwL;
-            // std::cout << "EMUX_output_x[" << i << "] A =  " << EMUX_output_x[i] << std::endl;
-            EMUX_output_x[i] = (EMUX_output_x[i] >> Tk) & mask_l_Tk;
-            // std::cout << "EMUX_output_x[" << i << "] A trun =  " << EMUX_output_x[i] << std::endl;
-        }
-        prod->aux->MSBsec(EMUX_output_x, DreluMSB, dim, bwL - Tk);
-    }
-    else
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            // std::cout << "EMUX_output_x[" << i << "] B =  " << EMUX_output_x[i] << std::endl;
-            EMUX_output_x[i] = (EMUX_output_x[i] >> Tk) & mask_l_Tk;
-            // std::cout << "EMUX_output_x[" << i << "] B trun =  " << EMUX_output_x[i] << std::endl;
-        }
+    // if (party == ALICE)
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         EMUX_output_x[i] = (EMUX_output_x[i] - alpha) & mask_bwL;
+    //         // std::cout << "EMUX_output_x[" << i << "] A =  " << EMUX_output_x[i] << std::endl;
+    //         EMUX_output_x[i] = (EMUX_output_x[i] >> Tk) & mask_l_Tk;
+    //         // std::cout << "EMUX_output_x[" << i << "] A trun =  " << EMUX_output_x[i] << std::endl;
+    //     }
+    //     prod->aux->MSBsec(EMUX_output_x, DreluMSB, dim, bwL - Tk);
+    // }
+    // else
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         // std::cout << "EMUX_output_x[" << i << "] B =  " << EMUX_output_x[i] << std::endl;
+    //         EMUX_output_x[i] = (EMUX_output_x[i] >> Tk) & mask_l_Tk;
+    //         // std::cout << "EMUX_output_x[" << i << "] B trun =  " << EMUX_output_x[i] << std::endl;
+    //     }
 
-        // prod->aux->MSB(EMUX_output_x, DreluMSB, dim, bwL);
-        prod->aux->MSBsec(EMUX_output_x, DreluMSB, dim, bwL - Tk);
-    }
+    //     // prod->aux->MSB(EMUX_output_x, DreluMSB, dim, bwL);
+    //     prod->aux->MSBsec(EMUX_output_x, DreluMSB, dim, bwL - Tk);
+    // }
 
-    if (party == ALICE)
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            Drelu_[i] = DreluMSB[i] ^ 1;
-        }
-    }
-    else
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            Drelu_[i] = DreluMSB[i];
-        }
-    }
+    // if (party == ALICE)
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         Drelu_[i] = DreluMSB[i] ^ 1;
+    //     }
+    // }
+    // else
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         Drelu_[i] = DreluMSB[i];
+    //     }
+    // }
     uint64_t STEP14_comm_end = iopack->get_comm();
     std::cout << "\n=========STEP15 get x_half ===========" << std::endl;
 
@@ -843,32 +843,32 @@ int main(int argc, char **argv)
     uint64_t *out_last_bitwrap = new uint64_t[dim];
     if (acc == 2)
     {
-        std::cout << "acc == 2" << std::endl;
-        if (party == ALICE)
-        {
-            // trunc_oracle->truncate(dim, inA, xhalf, 1, bwL, true, msbA);
-            // uint8_t *msb_zero = new uint8_t[dim];
+        // std::cout << "acc == 2" << std::endl;
+        // if (party == ALICE)
+        // {
+        //     // trunc_oracle->truncate(dim, inA, xhalf, 1, bwL, true, msbA);
+        //     // uint8_t *msb_zero = new uint8_t[dim];
 
-            aux->lastbit_MSB_to_Wrap_bitMul(dim, EMUX_output_x1, out_last_bitwrap, bwL);
-            aux->clear_MSB_to_Wrap_bitMul(dim, EMUX_output_x1, msb_zero, bitMul_wrap, bwL);
-            // std::cout << "bitMul_wrap[" << 0 << "] = " << bitMul_wrap[0] << std::endl;
-            for (int i = 0; i < dim; i++)
-            {
-                abs_xhalf[i] = ((EMUX_output_x1[i] >> 1) - bitMul_wrap[i] * (uint64_t)pow(2, bwL - 1) + out_last_bitwrap[i]) & mask_bwL;
-            }
-        }
-        else
-        {
-            // trunc_oracle->truncate(dim, inB, xhalf, 1, bwL, true, msbB);
+        //     aux->lastbit_MSB_to_Wrap_bitMul(dim, EMUX_output_x1, out_last_bitwrap, bwL);
+        //     aux->clear_MSB_to_Wrap_bitMul(dim, EMUX_output_x1, msb_zero, bitMul_wrap, bwL);
+        //     // std::cout << "bitMul_wrap[" << 0 << "] = " << bitMul_wrap[0] << std::endl;
+        //     for (int i = 0; i < dim; i++)
+        //     {
+        //         abs_xhalf[i] = ((EMUX_output_x1[i] >> 1) - bitMul_wrap[i] * (uint64_t)pow(2, bwL - 1) + out_last_bitwrap[i]) & mask_bwL;
+        //     }
+        // }
+        // else
+        // {
+        //     // trunc_oracle->truncate(dim, inB, xhalf, 1, bwL, true, msbB);
 
-            aux->lastbit_MSB_to_Wrap_bitMul(dim, EMUX_output_x1, out_last_bitwrap, bwL);
-            aux->clear_MSB_to_Wrap_bitMul(dim, EMUX_output_x1, msb_zero, bitMul_wrap, bwL);
-            // std::cout << "bitMul_wrap[" << 0 << "] = " << bitMul_wrap[0] << std::endl;
-            for (int i = 0; i < dim; i++)
-            {
-                abs_xhalf[i] = ((EMUX_output_x1[i] >> 1) - bitMul_wrap[i] * (uint64_t)pow(2, bwL - 1) + out_last_bitwrap[i]) & mask_bwL;
-            }
-        }
+        //     aux->lastbit_MSB_to_Wrap_bitMul(dim, EMUX_output_x1, out_last_bitwrap, bwL);
+        //     aux->clear_MSB_to_Wrap_bitMul(dim, EMUX_output_x1, msb_zero, bitMul_wrap, bwL);
+        //     // std::cout << "bitMul_wrap[" << 0 << "] = " << bitMul_wrap[0] << std::endl;
+        //     for (int i = 0; i < dim; i++)
+        //     {
+        //         abs_xhalf[i] = ((EMUX_output_x1[i] >> 1) - bitMul_wrap[i] * (uint64_t)pow(2, bwL - 1) + out_last_bitwrap[i]) & mask_bwL;
+        //     }
+        // }
         uint64_t *neg_z = new uint64_t[dim];
         for (int i = 0; i < dim; i++)
         {
