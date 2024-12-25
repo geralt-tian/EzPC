@@ -11,6 +11,7 @@
 #include "Millionaire/millionaire.h"
 #include "Millionaire/millionaire_with_equality.h"
 #include "Millionaire/equality.h"
+#include "Math/math-functions.h" 
 #include "BuildingBlocks/truncation.h"
 #include "BuildingBlocks/aux-protocols.h"
 #include <chrono>
@@ -62,9 +63,12 @@ Truncation *trunc_oracle;
 AuxProtocols *aux;
 MillionaireWithEquality *mill_eq;
 Equality *eq;
+MathFunctions *math;
 
-// int dim = 20000;
-int dim = 1000;
+// int dim = 1000;
+// int dim = 1024;
+int dim = 1024 * 16;
+
 uint64_t acc = 2;
 // uint64_t init_input = 2097000; //左边区间
 // uint64_t init_input = 2097000; // 中间区间
@@ -237,7 +241,29 @@ void DReLU_Eq(uint64_t *inA, uint8_t *b, uint8_t *b_, uint64_t dim, uint64_t bwl
 //////////////////////
 // 初始化
 ///////////////////////////////
+int two_comparisons(uint64_t *input_data)
+{
 
+    mill_eq = new MillionaireWithEquality(party, iopack, otpack);
+    trunc_oracle = new Truncation(party, iopack, otpack);
+    aux = new AuxProtocols(party, iopack, otpack);
+    eq = new Equality(party, iopack, otpack);
+    math = new MathFunctions(party, iopack, otpack); // Initialize the 'math' object
+    uint8_t *carry = new uint8_t[dim];
+    uint8_t *res_eq = new uint8_t[dim];
+    uint64_t *comp_eq_input = new uint64_t[dim];
+    uint64_t Comm_start = iopack->get_comm();
+    // auto time_start = std::chrono::high_resolution_clock::now();
+
+    math->DReLU(dim, comp_eq_input, res_eq,bwL,0); // Use the 'math' object
+    math->DReLU(dim, comp_eq_input, res_eq,bwL,0);
+    // auto time_end = std::chrono::high_resolution_clock::now();
+    uint64_t Comm_end = iopack->get_comm();
+    std::cout << "two_comparisons Comm = " << (Comm_end - Comm_start) / dim * 8 << std::endl;
+    // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
+    // std::cout << "two_comparisons Time elapsed: " << duration << " microseconds" << std::endl;
+    return 1;
+}
 int first_interval(uint64_t *input_data)
 {
     mill_eq = new MillionaireWithEquality(party, iopack, otpack);
@@ -260,7 +286,7 @@ int first_interval(uint64_t *input_data)
         }
     }
     uint64_t Comm_start = iopack->get_comm();
-    auto time_start = std::chrono::high_resolution_clock::now();
+    // auto time_start = std::chrono::high_resolution_clock::now();
     uint64_t trun_start = iopack->get_comm();
     trunc_oracle->truncate_and_reduce(dim, input_data1, outtrunc, d, bwL);
     uint64_t trun_end = iopack->get_comm();
@@ -282,16 +308,17 @@ int first_interval(uint64_t *input_data)
         }
     }
     uint64_t compare_with_eq_start = iopack->get_comm();
-    mill_eq->compare_with_eq(res_cmp, res_eq, comp_eq_input, dim, bwL - d); //
+    // mill_eq->compare_with_eq(res_cmp, res_eq, comp_eq_input, dim, bwL - d); //
+    eq->check_equality(res_eq, comp_eq_input, dim,bwL - d );
     uint64_t compare_with_eq_end = iopack->get_comm();
-    auto time_end = std::chrono::high_resolution_clock::now();
+    // auto time_end = std::chrono::high_resolution_clock::now();
     uint64_t Comm_end = iopack->get_comm();
 
     std::cout << "Comm = " << (Comm_end - Comm_start) / dim * 8 << std::endl;
     std::cout << "Truncation = " << (trun_end - trun_start) / dim * 8 << std::endl;
     std::cout << "Compare_with_eq = " << (compare_with_eq_end - compare_with_eq_start) / dim * 8 << std::endl;
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
-    std::cout << "Time elapsed: " << duration << " microseconds" << std::endl;
+    // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
+    // std::cout << "Time elapsed: " << duration << " microseconds" << std::endl;
 
     // for (int i = 0; i < dim; i++)
     // {
@@ -322,7 +349,7 @@ int second_interval(uint64_t *input_data)
     uint8_t *res_eq = new uint8_t[dim];
     // TR
     uint64_t Comm_start = iopack->get_comm();
-    auto time_start = std::chrono::high_resolution_clock::now();
+    // auto time_start = std::chrono::high_resolution_clock::now();
     // if (party == ALICE)
     // {
     //     for (int i = 0; i < dim; i++)
@@ -346,14 +373,14 @@ int second_interval(uint64_t *input_data)
     //     comp_eq_input[i] = (addfor + outtrunc[i]) & mask_bwL; // 这里应该mod 多少？
     // }
 
-    auto time_end = std::chrono::high_resolution_clock::now();
+    // auto time_end = std::chrono::high_resolution_clock::now();
     uint64_t Comm_end = iopack->get_comm();
     std::cout << "Comm = " << (Comm_end - Comm_start) / dim * 8 << std::endl;
     std::cout << "Truncation = " << (trun_end - trun_start) / dim * 8 << std::endl;
     std::cout << "DReLU_Eq = " << (DReLU_Eq_end - DReLU_Eq_start) / dim * 8 << std::endl;
 
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
-    std::cout << "Time elapsed: " << duration << " microseconds" << std::endl;
+    // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
+    // std::cout << "Time elapsed: " << duration << " microseconds" << std::endl;
     // for (int i = 0; i < dim; i++)
     // {
     //     std::cout << "outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
@@ -379,7 +406,7 @@ int third_interval(uint64_t *input_data)
     uint8_t *res_cmp = new uint8_t[dim];
     // TR
     uint64_t Comm_start = iopack->get_comm();
-    auto time_start = std::chrono::high_resolution_clock::now();
+    // auto time_start = std::chrono::high_resolution_clock::now();
     // if (party == ALICE)
     // {
     //     for (int i = 0; i < dim; i++)
@@ -419,9 +446,10 @@ int third_interval(uint64_t *input_data)
         }
     }
     // uint64_t compare_with_eq_start = iopack->get_comm();
-    mill_eq->compare_with_eq(res_cmp, res_eq, comp_eq_input, dim, bwL - d); //
+    // mill_eq->compare_with_eq(res_cmp, res_eq, comp_eq_input, dim, bwL - d); //
+    eq->check_equality(res_eq, comp_eq_input, dim,bwL - d );
     // uint64_t compare_with_eq_end = iopack->get_comm();
-    auto time_end = std::chrono::high_resolution_clock::now();
+    // auto time_end = std::chrono::high_resolution_clock::now();
 
     // auto time_end = std::chrono::high_resolution_clock::now();
     uint64_t Comm_end = iopack->get_comm();
@@ -429,8 +457,8 @@ int third_interval(uint64_t *input_data)
     std::cout << "Truncation = " << (trun_end - trun_start) / dim * 8 << std::endl;
     std::cout << "DReLU_Eq = " << (DReLU_Eq_end - DReLU_Eq_start) / dim * 8 << std::endl;
 
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
-    std::cout << "Time elapsed: " << duration << " microseconds" << std::endl;
+    // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
+    // std::cout << "Time elapsed: " << duration << " microseconds" << std::endl;
     // for (int i = 0; i < dim; i++)
     // {
     //     std::cout << "outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
@@ -880,12 +908,18 @@ int main(int argc, char **argv)
     prod = new LinearOT(party, iopack, otpack);
 
     uint64_t *inB = new uint64_t[dim]; // Declare the variable "inB"
-    std::cout << "first_interval :" << std::endl;
+    
     for (int i = 0; i < dim; i++)
     {
         inA[i] = (0 + i * 0) & mask_bwL;
         inB[i] = (init_input + i * step_size) & mask_bwL;
     }
+
+
+for (int p=0;p<1;p++)
+{
+    std::cout << "first_interval :" << std::endl;
+    auto time_start = std::chrono::high_resolution_clock::now();
     if (party == ALICE)
     {
 
@@ -898,7 +932,10 @@ int main(int argc, char **argv)
         inB[2] = 0;
         first_interval(inB);
     }
-
+    auto time_end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
+    std::cout << "first_interval Time elapsed: " << duration << " microseconds" << std::endl;
+    std::cout << " " << std::endl;
     //     if (party == ALICE)
     // {
 
@@ -909,6 +946,7 @@ int main(int argc, char **argv)
     //     first_interval(inB);
     // }
     std::cout << "second_interval :" << std::endl;
+    auto sectime_start = std::chrono::high_resolution_clock::now();
     if (party == ALICE)
     {
         for (int i = 0; i < dim; i++)
@@ -925,7 +963,14 @@ int main(int argc, char **argv)
         }
         second_interval(inB);
     }
+    auto sectime_end = std::chrono::high_resolution_clock::now();
+    auto secduration = std::chrono::duration_cast<std::chrono::microseconds>(sectime_end - sectime_start).count();
+    std::cout << "second_interval Time elapsed: " << secduration << " microseconds" << std::endl;
+    std::cout << " " << std::endl;
+
+    /////////////////
     std::cout << "third_interval :" << std::endl;
+    auto thirdtime_start = std::chrono::high_resolution_clock::now();
     if (party == ALICE)
     {
         third_interval(inA);
@@ -934,7 +979,26 @@ int main(int argc, char **argv)
     {
         third_interval(inB);
     }
+    auto thirdtime_end = std::chrono::high_resolution_clock::now();
+    auto thirdduration = std::chrono::duration_cast<std::chrono::microseconds>(thirdtime_end - thirdtime_start).count();
+    std::cout << "third_interval Time elapsed: " << thirdduration << " microseconds" << std::endl;
+    std::cout << " " << std::endl;
     // for (uint64_t i = 8; i < 9; i++)
+        std::cout << "two_comparisons :" << std::endl;
+    auto twocmptime_start = std::chrono::high_resolution_clock::now();
+    if (party == ALICE)
+    {
+
+        two_comparisons(inA);
+    }
+    else
+    {
+        two_comparisons(inB);
+    }
+    auto twocmptime_end = std::chrono::high_resolution_clock::now();
+    auto twocmpduration = std::chrono::duration_cast<std::chrono::microseconds>(twocmptime_end - twocmptime_start).count();
+    std::cout << "two_comparisons Time elapsed: " << twocmpduration << " microseconds" << std::endl;
+}
 
     delete prod;
     delete[] inA; // Delete the variable "inA" to avoid memory leaks

@@ -41,8 +41,8 @@ bool precomputed_MSBs = false;  // 决定是否预计算最高有效位
 MultMode mode = MultMode::None; // 乘法模式
 
 // uint64_t la = 14;//la=5 f=5,la=14,f=12
-uint64_t lb = 12;
-uint64_t la = 6; // la=5 f=5,la=14,f=12
+uint64_t lb = 10;
+uint64_t la = 10; // la=5 f=5,la=14,f=12
 uint64_t f = 12;
 uint64_t s = 6;
 
@@ -63,10 +63,12 @@ AuxProtocols *aux;
 MillionaireWithEquality *mill_eq;
 Equality *eq;
 
-int dim = 10000;
+int dim = 4096*8;
+// int dim = 1024;
 uint64_t acc = 2;
-// uint64_t init_input = 2070769; //左边区间
-uint64_t init_input = 2095151; // 中间区间
+// uint64_t init_input = 2097000; //左边区间
+uint64_t init_input = 2080768; // 中间区间
+
 // uint64_t init_input = 0;  //右边区间
 uint64_t step_size = 1;
 uint64_t correct = 1;
@@ -303,7 +305,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     uint64_t s = k;
     uint64_t f = l;
 
-    uint64_t h = f + 3;
+    uint64_t h = f + 2;
     uint64_t Tk = f - 1;
     uint64_t alpha = 8 * pow(2, f);
     uint64_t mask_lb = (lb == 64 ? -1 : ((1ULL << lb) - 1));
@@ -313,15 +315,17 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     // uint64_t s = 7;
     uint64_t mask_s = ((s) == 64 ? -1 : ((1ULL << (s)) - 1));
     uint64_t mask_h = (h == 64) ? ~0ULL : (1ULL << h) - 1;
-    uint64_t comm_start = iopack->get_comm();
-    auto time_start = chrono::high_resolution_clock::now();
 
     uint64_t *inA = new uint64_t[dim];
     uint64_t *inB = new uint64_t[dim];
 
     uint64_t *outax = new uint64_t[dim];
     // la=8 lb=8
-    std::vector<std::vector<uint64_t>> data = {{1, 136}, {1, 136}, {3, 151}, {2, 143}, {2, 143}, {3, 150}, {1, 135}, {1, 135}, {1, 135}, {1, 135}, {1, 135}, {1, 135}, {2, 141}, {2, 141}, {4, 153}, {1, 134}, {1, 134}, {2, 140}, {1, 134}, {1, 134}, {1, 134}, {1, 134}, {1, 134}, {1, 134}, {0, 129}, {0, 129}, {1, 134}, {1, 134}, {1, 134}, {1, 134}, {0, 130}, {0, 130}, {3, 142}, {4, 146}, {4, 146}, {4, 146}, {2, 139}, {4, 146}, {4, 146}, {1, 137}, {7, 155}, {9, 161}, {9, 161}, {9, 161}, {11, 166}, {14, 173}, {14, 173}, {12, 169}, {19, 183}, {21, 187}, {25, 194}, {27, 197}, {31, 203}, {34, 207}, {37, 211}, {44, 219}, {51, 226}, {58, 232}, {65, 237}, {73, 242}, {83, 247}, {94, 251}, {105, 254}, {121, 0}};
+    // std::vector<std::vector<uint64_t>> data = {{1, 136}, {1, 136}, {3, 151}, {2, 143}, {2, 143}, {3, 150}, {1, 135}, {1, 135}, {1, 135}, {1, 135}, {1, 135}, {1, 135}, {2, 141}, {2, 141}, {4, 153}, {1, 134}, {1, 134}, {2, 140}, {1, 134}, {1, 134}, {1, 134}, {1, 134}, {1, 134}, {1, 134}, {0, 129}, {0, 129}, {1, 134}, {1, 134}, {1, 134}, {1, 134}, {0, 130}, {0, 130}, {3, 142}, {4, 146}, {4, 146}, {4, 146}, {2, 139}, {4, 146}, {4, 146}, {1, 137}, {7, 155}, {9, 161}, {9, 161}, {9, 161}, {11, 166}, {14, 173}, {14, 173}, {12, 169}, {19, 183}, {21, 187}, {25, 194}, {27, 197}, {31, 203}, {34, 207}, {37, 211}, {44, 219}, {51, 226}, {58, 232}, {65, 237}, {73, 242}, {83, 247}, {94, 251}, {105, 254}, {121, 0}};
+    // la=10,ld=10,s=6
+    std::vector<std::vector<uint64_t>> data = {{10,561}, {14,577}, {13,573}, {12,569}, {12,569}, {15,580}, {15,580}, {15,580}, {15,580}, {17,587}, {20,597}, {17,587}, {21,600}, {20,597}, {19,594}, {9,564}, {27,618}, {32,633}, {31,630}, {31,630}, {35,641}, {35,641}, {40,654}, {40,654}, {44,664}, {44,664}, {49,676}, {52,683}, {56,692}, {62,705}, {63,707}, {58,697}, {72,725}, {76,733}, {83,746}, {88,755}, {92,762}, {98,772}, {106,785}, {104,782}, {118,803}, {124,812}, {132,823}, {145,840}, {149,845}, {159,857}, {175,875}, {172,872}, {195,895}, {202,902}, {219,917}, {235,930}, {251,942}, {264,951}, {285,964}, {301,973}, {321,983}, {342,992}, {366,1001}, {389,1008}, {409,1013}, {441,1019}, {466,1022}, {499,0}};
+    // std::vector<std::vector<uint64_t>> data = {{72,725}, {76,733}, {83,746}, {88,755}, {92,762}, {98,772}, {106,785}, {104,782}, {118,803}, {124,812}, {132,823}, {145,840}, {149,845}, {159,857}, {175,875}, {172,872}, {195,895}, {202,902}, {219,917}, {235,930}, {251,942}, {264,951}, {285,964}, {301,973}, {321,983}, {342,992}, {366,1001}, {389,1008}, {409,1013}, {441,1019}, {466,1022}, {499,0}, {10,561}, {14,577}, {13,573}, {12,569}, {12,569}, {15,580}, {15,580}, {15,580}, {15,580}, {17,587}, {20,597}, {17,587}, {21,600}, {20,597}, {19,594}, {9,564}, {27,618}, {32,633}, {31,630}, {31,630}, {35,641}, {35,641}, {40,654}, {40,654}, {44,664}, {44,664}, {49,676}, {52,683}, {56,692}, {62,705}, {63,707}, {58,697}};
+
     // la=6 lb=6
     //  std::vector<std::vector<uint64_t>> data = {{1,40}, {1,40}, {3,55}, {2,47}, {2,47}, {3,54}, {1,39}, {1,39}, {1,39}, {1,39}, {3,52}, {2,45}, {2,45}, {3,51}, {1,38}, {1,38}, {1,38}, {1,38}, {1,38}, {2,43}, {2,43}, {3,48}, {4,53}, {1,37}, {1,37}, {1,37}, {1,37}, {1,37}, {1,37}, {2,41}, {3,45}, {1,37}, {0,33}, {4,48}, {0,33}, {2,40}, {0,33}, {3,43}, {3,43}, {2,40}, {0,34}, {0,34}, {4,45}, {1,37}, {3,42}, {3,42}, {2,40}, {0,36}, {5,46}, {6,48}, {6,48}, {6,48}, {8,51}, {8,51}, {12,56}, {12,56}, {9,53}, {12,56}, {16,59}, {19,61}, {19,61}, {24,63}, {29,0}, {30,0}};
     for (int i = 0; i < dim; i++)
@@ -331,6 +335,8 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     }
     uint8_t *outb = new uint8_t[dim];
     uint8_t *outb_star = new uint8_t[dim];
+    uint64_t Comm_start = iopack->get_comm();
+    auto time_start = std::chrono::high_resolution_clock::now();
     if (party == ALICE)
     {
         second_interval(inA, outb, outb_star); // step 5SSS
@@ -360,78 +366,43 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     std::cout << "mask_TR_sub_1 = " << mask_TR_sub_1 << std::endl;
     uint64_t *eight_bit_wrap = new uint64_t[dim];
 
-    uint64_t Comm_start = iopack->get_comm();
+    
 
     uint64_t TR_wrap_start = iopack->get_comm();
     if (party == ALICE)
     {
         // trunc_oracle->truncate_and_reduce_eight_bit_wrap(dim, inA, input_cut_h, eight_bit_wrap, tr, bwL); //step 7 tr
         trunc_oracle->truncate_and_reduce(dim, inB, input_cut_h, tr, bwL); //step 7 tr
-        for (int i = 0; i < dim; i++)
-        {
-            comp_eq_input[i] = mask_bwL_sub_tr_sub_1 + 1 - (input_cut_h[i] & mask_bwL_sub_tr_sub_1);
-            // std::cout << "input_cut_h[" << i << "] = " << (input_cut_h[i] & mask_bwL_sub_tr_sub_1) << std::endl;
-            std::cout << "eight_bit_wrap[" << i << "] = " << eight_bit_wrap[i] << std::endl;
-            // comp_eq_input0 = 64 - (y0 mod 64)
-            // comp_eq_input0 = 2^(l-t-1) - (y0 mod 2^(l-t-1))
-
-            // comp_eq_input1 = y1 mod 2^(l-t-1)
-            // 用 comp 去选
-
-            // eq_input[i] = mask_TR_sub_1 + 1 - (TR_output[i] & mask_TR_sub_1);
-        }
     }
     else
     {
         // trunc_oracle->truncate_and_reduce_eight_bit_wrap(dim, inB, input_cut_h, eight_bit_wrap, tr, bwL);
         trunc_oracle->truncate_and_reduce(dim, inB, input_cut_h, tr, bwL);
-        for (int i = 0; i < dim; i++)
-        {
-            comp_eq_input[i] = input_cut_h[i] & mask_bwL_sub_tr_sub_1;
-            // std::cout << "input_cut_h[" << i << "] = " << (input_cut_h[i] & mask_bwL_sub_tr_sub_1) << std::endl;
-            std::cout << "eight_bit_wrap[" << i << "] = " << eight_bit_wrap[i] << std::endl;
-            // eq_input[i] = TR_output[i] & mask_TR_sub_1;
-        }
     }
     uint64_t TR_wrap_end = iopack->get_comm();
-    // comp_eq 得到 eq=1时，值映射到-1，means在中间区间。否则，comp=0，为负值，comp=1为正。comp_eq还需要得到一个wrap
-    uint8_t *res_cmp = new uint8_t[dim];
-    uint8_t *res_eq = new uint8_t[dim];
 
-    // mill_eq->compare_with_eq(res_cmp, res_eq,  comp_eq_input, dim, bwL - h); // res_wrapcomp1是最右边的叶子节点
-    uint64_t EReLU_Eq_start = iopack->get_comm();
-    DReLU_Eq(input_cut_h, res_cmp, res_eq, dim, bwL - h);
-    uint64_t EReLU_Eq_end = iopack->get_comm();
-    for (int i = 0; i < dim; i++)
-    {
-        std::cout << "res_cmp[" << i << "] = " << static_cast<int>(res_cmp[i]) << std::endl;
-        std::cout << "res_eq[" << i << "] = " << static_cast<int>(res_eq[i]) << std::endl;
-        // std::cout << "non_negative1_part[" << i << "] = " << non_negative1_part[i] << std::endl;
-    }
 
     // tr 得到中间长度为s的index，进行LUT
     uint64_t *input_lower_h = new uint64_t[dim];
     uint64_t *outtrunc = new uint64_t[dim];
-
-    assign_lower_h_bits(dim, inA, inB, input_lower_h, h);
+    uint64_t *inputinB = new uint64_t[dim];
+    for (int i = 0; i < dim; i++)
+    {
+        inputinB[i] = inB[i] + 16384;
+    }
+    assign_lower_h_bits(dim, inA, inputinB, input_lower_h, h);
 
     for (int i = 0; i < dim; i++)
     {
-        std::cout << "input_lower_h[" << i << "] = " << input_lower_h[i] << std::endl;
+        // std::cout << "input_lower_h[" << i << "] = " << input_lower_h[i] << std::endl;
     }
 
     trunc_oracle->truncate_and_reduce(dim, input_lower_h, outtrunc, h - s, h); // 这个不需要tr，可以本地截断加wrap，wrap上一步已经算好了
 
-    // for (int i = 0; i < dim; i++)
-    // {
-    //     // outtrunc[i] = input_lower_h[i] & mask_s;
-    //     outtrunc[i] = input_lower_h[i] >> (h - s);
-    //     outtrunc[i] = (outtrunc[i] + eight_bit_wrap[i]) & mask_s;
-    // }
 
     for (int i = 0; i < dim; i++)
     {
-        std::cout << "***outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
+        // std::cout << "***outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
     }
 
     uint64_t *outtrunc1 = new uint64_t[dim];
@@ -447,7 +418,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         for (int i = 0; i < dim; i++)
         {
             outtrunc_a[i] = (outtrunc[i] + outtrunc1[i]) & ((1ULL << s) - 1);
-            std::cout << "outtrunc_a[" << i << "] = " << outtrunc_a[i] << std::endl;
+            // std::cout << "outtrunc_a[" << i << "] = " << outtrunc_a[i] << std::endl;
         }
     }
     uint64_t N = 1ULL << s; // LUT size
@@ -573,6 +544,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         for (int i = 0; i < dim; i++)
         {
             msb_b_extend[i] = 1;
+            // std::cout << "b_bob[" << i << "] = " << b_bob[i] << std::endl;
             b_bob[i] = (b_bob[i] - 10) & mask_lb;
         }
         ext->s_extend_msb(dim, b_bob, b_SExt, lb, bwL, msb_b_extend);
@@ -586,12 +558,12 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     }
     // if (party == ALICE)
     // {
-    //     for (int i = 0; i < dim; i++)
-    //     {
+        for (int i = 0; i < dim; i++)
+        {
     //         std::cout << "b_alice[" << i << "] = " << b_alice[i] << std::endl;
-    //         std::cout << "outax[" << i << "] = " << outax[i] << std::endl;
-    //         std::cout << "b_SExt[" << i << "] = " << (b_SExt[i] * static_cast<uint64_t>(std::pow(2, f - lb + 1)) & mask_bwL) << std::endl;
-    //     }
+            // std::cout << "outax[" << i << "] = " << outax[i] << std::endl;
+            // std::cout << "b_SExt[" << i << "] = " << (b_SExt[i] * static_cast<uint64_t>(std::pow(2, f - lb + 1)) & mask_bwL) << std::endl;
+        }
     // }
     // else
     // {
@@ -634,8 +606,8 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     }
     for (int i = 0; i < dim; i++)
     {
-        std::cout << "res_cmp[" << i << "] = " << static_cast<int>(res_cmp[i]) << std::endl;
-        std::cout << "non_negative1_part[" << i << "] = " << non_negative1_part[i] << std::endl;
+
+        // std::cout << "non_negative1_part[" << i << "] = " << non_negative1_part[i] << std::endl;
     }
 
     uint8_t *choose_negative_part = new uint8_t[dim];
@@ -649,17 +621,16 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     uint64_t two_select_share_end = iopack->get_comm();
 
     uint64_t Comm_end = iopack->get_comm();
-
+    auto time_end = std::chrono::high_resolution_clock::now();
     // for (int i = 0; i < dim; i++)
     // {
     //     y[i] = (z[i] - postive_part[i]) & mask_bwL;
     // }
     for (int i = 0; i < dim; i++)
     {
-        std::cout << "outb[" << i << "] = " << static_cast<int>(outb[i]) << std::endl;
-        std::cout << "outb_star[" << i << "] = " << static_cast<int>(outb_star[i]) << std::endl;
-        std::cout << "choose_negative_part[" << i << "] = " << static_cast<int>(choose_negative_part[i]) << std::endl;
-        std::cout << "res_cmp[" << i << "] = " << static_cast<int>(res_cmp[i]) << std::endl;
+        // std::cout << "outb[" << i << "] = " << static_cast<int>(outb[i]) << std::endl;
+        // std::cout << "outb_star[" << i << "] = " << static_cast<int>(outb_star[i]) << std::endl;
+        // std::cout << "choose_negative_part[" << i << "] = " << static_cast<int>(choose_negative_part[i]) << std::endl;
         // std::cout << "z[" << i << "] = " << z[i] << std::endl;
         // std::cout << "y[" << i << "] = " << y[i] << std::endl;
         // std::cout << "y[" << i << "] = " << y[i] / pow(2,20) << std::endl;
@@ -707,7 +678,6 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         std::cout << "min_val: " << min_val << std::endl;
     }
     cout << "TR_wrap Sent: " << (TR_wrap_end - TR_wrap_start) / dim * 8 << " bits" << endl;
-    cout << "EReLU_Eq Sent: " << (EReLU_Eq_end - EReLU_Eq_start) / dim * 8 << " bits" << endl;
     cout << "Two LUT Sent: " << (two_LUT_end - two_LUT_start) / dim * 8 << " bits" << endl;
     cout << "Hadamard Product Sent: " << (hadamard_product_end - hadamard_product_start) / dim * 8 << " bits" << endl;
     cout << "S Extend Sent: " << (s_extend_comm_end - s_extend_comm_start) / dim * 8 << " bits" << endl;
@@ -719,6 +689,8 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     // LUT - 256
     // LUT - s
     cout << "Total Bytes Sent: " << (Comm_end - Comm_start) / dim * 8 - 64 - 128 << " bits" << endl;
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
+    std::cout << "Time elapsed: " << duration << " ms" << std::endl;
     delete[] inA;
     delete[] inB;
     delete[] outax;
@@ -762,15 +734,15 @@ int main(int argc, char **argv)
         csvFile.close();
     }
 
-    for (uint64_t lai = 8; la < 9; la++)
+    for (uint64_t lai = 10; la < 11; la++)
     // for (uint64_t la = 6; la < 7; la++)
     {
-        for (uint64_t lb = 8; lb < 9; lb++)
+        for (uint64_t lb = 10; lb < 11; lb++)
         // for (uint64_t lb = 6; lb < 7; lb++)
         {
             for (uint64_t s = 6; s < 7; s++)
             {
-                for (uint64_t k = 11; k < 12; k++)
+                for (uint64_t k = 12; k < 13; k++)
                 {
                     if ((la <= k) & (lb <= k))
                         init_test(la, lb, s, k);

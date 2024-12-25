@@ -36,7 +36,8 @@ def gen_A(la):  # 生成 la-bit 的全部可能斜率，取值[0,1)，从小到�
 def gen_D(ld):  # 生成 ld-bit 的全部可能斜率，取值[-1,0)，从小到大
     D = []
     for i in range(2**ld):
-        D.append(-bin_to_decimal(num_to_bin(i, ld)))
+        # D.append(-bin_to_decimal(num_to_bin(i, ld)))  # if GELU
+        D.append(bin_to_decimal(num_to_bin(i, ld))) # if tanh or sigmoid
     D.reverse()
     return D
 
@@ -44,13 +45,45 @@ def gen_D(ld):  # 生成 ld-bit 的全部可能斜率，取值[-1,0)，从小到
 
 ######################## 函数 ########################
 
-# GeLU, g(x)
+# # GeLU, g(x)
+# def gx(x):
+#     return x/2 * erf(x/math.sqrt(2))
+# def gx_derivative(x):   # 计算拟合 g(x) 的一次函数的斜率
+#     return math.sqrt(2)*x*math.exp(-x**2/2)/(2*math.sqrt(math.pi)) + erf(math.sqrt(2)*x/2)/2
+# def gx_intercept(x):    # 计算截距
+#     return gx(x) - gx_derivative(x) * x
+
+
+
+# # # tanh
+# e = math.e
+# def gx(x):
+#     return (e**x - e**(-x)) / (e**x + e**(-x))
+
+# def gx_derivative(x): 
+#     return 1 - gx(x)**2
+
+# def gx_intercept(x):    # 计算截距
+#     return gx(x) - gx_derivative(x) * x
+
+
+
+# # sigmoid
+e = math.e
 def gx(x):
-    return x/2 * erf(x/math.sqrt(2))
-def gx_derivative(x):   # 计算拟合 g(x) 的一次函数的斜率
-    return math.sqrt(2)*x*math.exp(-x**2/2)/(2*math.sqrt(math.pi)) + erf(math.sqrt(2)*x/2)/2
+    return 1 / (1 + e**(-x))
+
+def gx_derivative(x): 
+    return gx(x) * (1 - gx(x))
+
 def gx_intercept(x):    # 计算截距
     return gx(x) - gx_derivative(x) * x
+
+
+
+
+
+
 
 def error_a_d(C, a, d, start, end): # 计算误差，这里用均方误差
     x = np.linspace(start, end, 100)
@@ -105,6 +138,7 @@ def Error_slice(C, la, ld, start, end):
 
     # print("A_try: ", A_try)
     # print("D_try: ", D_try) # 不用D_try
+    # A_try = A
     D_try = D   # 不用D_try
 
     e = [ [0 for i in range(len(D_try))] for j in range(len(A_try)) ]
@@ -176,7 +210,7 @@ def Error_all(C, la, ld, Start, End, N,s):    # 分成N份
     formatted_output = ', '.join(f'{{{a},{d}}}' for a, d in zip(A, D))
     print(formatted_output)
 
-    csv_filename = 'la_ld_s7.csv'
+    csv_filename = 'tanh_la_ld_s6_test.csv'
 
 # 写入 CSV 文件
     with open(csv_filename, mode='a', newline='') as file:
@@ -195,17 +229,25 @@ def Error_all(C, la, ld, Start, End, N,s):    # 分成N份
 
 
 C = 0
-la = 6
+la = 10
 ld = 10
 Start, End = 0, 4
-s = 7
+s = 6
 N = pow(2, s)
-csv_filename = 'la_ld_s.csv'
-with open(csv_filename, mode='w', newline='') as file:
-    pass
+# csv_filename = 'la_ld_s.csv'
+# with open(csv_filename, mode='w', newline='') as file:
+#     pass
+
+
 for la in range(1, 13):  # la 从 5 到 12
     for lb in range(1, 13):  # lb 从 6 到 12
-        for s in range(7, 8):  # s 从 6 到 7
+        for s in range(6, 7):  # s 从 6 到 7
+
+
+# for la in range(5,6):  # la 从 5 到 12
+#     for lb in range(9,10):  # lb 从 6 到 12
+#         for s in range(6,7):  # s 从 6 到 7
+
             print(f"Executing Error_all with la={la}, lb={lb}, s={s}")
             Error_all(C, la, lb, Start, End, N, s) 
 

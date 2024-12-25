@@ -262,9 +262,9 @@ def Error_all_parallel(args):
 def main():
     C = 0
     Start, End = -4, 0
-    s = 7
+    s = 6
     N = pow(2, s)
-    csv_filename = 'elu_la_ld_s7.csv'
+    csv_filename = 'elu_la10_ld10_s6.csv'
 
     # 清空输出文件
     with open(csv_filename, mode='w', newline='') as file:
@@ -272,8 +272,8 @@ def main():
 
     # 构造参数列表
     tasks = []
-    for la in range(1, 13):  # la 从 1 到 12
-        for lb in range(1, 13):  # lb 从 1 到 12
+    for la in range(9, 10):  # la 从 1 到 12
+        for lb in range(9, 10):  # lb 从 1 到 12
             for s in range(6, 7):  # s 从 6 到 7
                 print(f"Preparing task for la={la}, lb={lb}, s={s}")
                 tasks.append((C, la, lb, Start, End, N, s, csv_filename))
@@ -288,92 +288,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-# C = 0
-# la = 5
-# ld = 10
-# Start, End = 1, 2
-# N = 1
-# Error_all(C, la, ld, Start, End, N)
-
-
-
-
-# def test_error_a_d(C, a, d, start, end): # 计算误差，这里用均方误差
-#     x = np.linspace(start, end, 100)
-#     y_linear = a*x + d
-#     y_curve = 1/10 * x**2
-#     return np.mean((y_curve - y_linear) ** 2)
-
-
-# print("////////////////////")
-
-
-
-# def draw():
-
-#     C = 0
-#     start, end = 1, 2
-
-
-#     x = np.linspace(start, end, 100)
-#     y_curve = 1/10 * x**2
-#     plt.plot(x, y_curve, color = 'red', label='Curve')
-
-
-#     a = 0.3125
-#     d = -0.2353515625 # -d, 负值
-#     x = np.linspace(start, end, 100)
-#     y_linear = a*x + d
-#     plt.plot(x, y_linear, color = 'blue', label='Ours')
-#     print(test_error_a_d(C, a, d, start, end))
-
-
-#     a = 0.3
-#     d = -0.2
-#     x = np.linspace(start, end, 100)
-#     y_linear = a*x + d
-#     plt.plot(x, y_linear, color = 'green', label='Trad (real)')
-#     print(test_error_a_d(C, a, d, start, end))
-
-
-#     a = 0.3125
-#     d = -0.2001953125
-#     x = np.linspace(start, end, 100)
-#     y_linear = a*x + d
-#     plt.plot(x, y_linear, color = 'yellow', label='Trad (ring)')
-#     print(test_error_a_d(C, a, d, start, end))
-
-#     # a = 0.28125
-#     # d = -0.2
-#     # x = np.linspace(start, end, 100)
-#     # y_linear = a*x + d
-#     # plt.plot(x, y_linear, color = 'yellow')
-#     # print(test_error_a_d(C, a, d, start, end))
-
-
-#     # plt.grid(True)
-#     plt.legend()
-#     plt.show()
-
-
-# # draw()
-
-
-# # # 方法1: 使用格式化字符串
-# # l = 100
-# # def decimal_to_binary_string(num):
-# #     return '{0:b}'.format(int(num * (2 ** l)))[:l]
- 
-# # # 方法2: 使用内置函数format()
-# # def decimal_to_binary_string2(num):
-# #     return format(int(num * (2 ** l)), 'b')[:l]
- 
-# # # 示例
-# # decimal_number = 0.2
-# # binary_string = decimal_to_binary_string(decimal_number)
-# # print(binary_string)  # 输出: 0.101
- 
-# # binary_string2 = decimal_to_binary_string2(decimal_number)
-# # print(binary_string2)  # 输出: 0.101
-
-

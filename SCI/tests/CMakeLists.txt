@@ -53,6 +53,8 @@ add_test_OT(threeinterval)
 add_test_OT(million)
 add_test_OT(12_22_GELU_final)
 add_test_OT(12_23_ELU_final)
+add_test_OT(12_24_tanh_final)
+add_test_OT(12_25_sigmoid_final)
 
 add_test_HE(relu)
 add_test_HE(maxpool)
