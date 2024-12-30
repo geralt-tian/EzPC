@@ -36,8 +36,8 @@ def gen_A(la):  # 生成 la-bit 的全部可能斜率，取值[0,1)，从小到�
 def gen_D(ld):  # 生成 ld-bit 的全部可能斜率，取值[-1,0)，从小到大
     D = []
     for i in range(2**ld):
-        # D.append(-bin_to_decimal(num_to_bin(i, ld)))  # if GELU
-        D.append(bin_to_decimal(num_to_bin(i, ld))) # if tanh or sigmoid
+        D.append(-bin_to_decimal(num_to_bin(i, ld)))  # if GELU
+        # D.append(bin_to_decimal(num_to_bin(i, ld))) # if tanh or sigmoid
     D.reverse()
     return D
 
@@ -45,13 +45,13 @@ def gen_D(ld):  # 生成 ld-bit 的全部可能斜率，取值[-1,0)，从小到
 
 ######################## 函数 ########################
 
-# # GeLU, g(x)
-# def gx(x):
-#     return x/2 * erf(x/math.sqrt(2))
-# def gx_derivative(x):   # 计算拟合 g(x) 的一次函数的斜率
-#     return math.sqrt(2)*x*math.exp(-x**2/2)/(2*math.sqrt(math.pi)) + erf(math.sqrt(2)*x/2)/2
-# def gx_intercept(x):    # 计算截距
-#     return gx(x) - gx_derivative(x) * x
+# GeLU, g(x)
+def gx(x):
+    return x/2 * erf(x/math.sqrt(2))
+def gx_derivative(x):   # 计算拟合 g(x) 的一次函数的斜率
+    return math.sqrt(2)*x*math.exp(-x**2/2)/(2*math.sqrt(math.pi)) + erf(math.sqrt(2)*x/2)/2
+def gx_intercept(x):    # 计算截距
+    return gx(x) - gx_derivative(x) * x
 
 
 
@@ -68,16 +68,16 @@ def gen_D(ld):  # 生成 ld-bit 的全部可能斜率，取值[-1,0)，从小到
 
 
 
-# # sigmoid
-e = math.e
-def gx(x):
-    return 1 / (1 + e**(-x))
+# # # sigmoid
+# e = math.e
+# def gx(x):
+#     return 1 / (1 + e**(-x))
 
-def gx_derivative(x): 
-    return gx(x) * (1 - gx(x))
+# def gx_derivative(x): 
+#     return gx(x) * (1 - gx(x))
 
-def gx_intercept(x):    # 计算截距
-    return gx(x) - gx_derivative(x) * x
+# def gx_intercept(x):    # 计算截距
+#     return gx(x) - gx_derivative(x) * x
 
 
 
@@ -210,7 +210,7 @@ def Error_all(C, la, ld, Start, End, N,s):    # 分成N份
     formatted_output = ', '.join(f'{{{a},{d}}}' for a, d in zip(A, D))
     print(formatted_output)
 
-    csv_filename = 'tanh_la_ld_s6_test.csv'
+    csv_filename = 'gelu_la_ld_s6.csv'
 
 # 写入 CSV 文件
     with open(csv_filename, mode='a', newline='') as file:

@@ -261,8 +261,8 @@ def Error_all_parallel(args):
 
 def main():
     C = 0
-    Start, End = -4, 0
-    s = 6
+    Start, End = -8, 0
+    s = 7
     N = pow(2, s)
     csv_filename = 'elu_la10_ld10_s6.csv'
 
@@ -272,9 +272,9 @@ def main():
 
     # 构造参数列表
     tasks = []
-    for la in range(9, 10):  # la 从 1 到 12
-        for lb in range(9, 10):  # lb 从 1 到 12
-            for s in range(6, 7):  # s 从 6 到 7
+    for la in range(1, 13):  # la 从 1 到 12
+        for lb in range(1, 13):  # lb 从 1 到 12
+            for s in range(7, 8):  # s 从 6 到 7
                 print(f"Preparing task for la={la}, lb={lb}, s={s}")
                 tasks.append((C, la, lb, Start, End, N, s, csv_filename))
 
