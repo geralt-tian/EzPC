@@ -100,22 +100,22 @@ int main(int argc, char **argv) {
   uint64_t *y = new uint64_t[dim];
 
 
-    if (party == ALICE)
-  {
-    for (int i = 0; i < dim; i++) 
-    x[i] = 0 ;
-  }
-  else
-  {
-      for (int i = 0; i < dim; i++) {
-    x[i] = (dim - 16383) & mask_x;
-  }
-  }
-  // prg.random_data(x, dim * sizeof(uint64_t));
-
-  // for (int i = 0; i < dim; i++) {
-  //   x[i] &= mask_x;
+  //   if (party == ALICE)
+  // {
+  //   for (int i = 0; i < dim; i++) 
+  //   x[i] = 0 ;
   // }
+  // else
+  // {
+  //     for (int i = 0; i < dim; i++) {
+  //   x[i] = (dim - 16383) & mask_x;
+  // }
+  // }
+  prg.random_data(x, dim * sizeof(uint64_t));
+
+  for (int i = 0; i < dim; i++) {
+    x[i] &= mask_x;
+  }
 
   /************** Fork Threads ****************/
   /********************************************/
@@ -167,8 +167,8 @@ int main(int argc, char **argv) {
       double dbl_y = (signed_val(y0[i] + y[i], bw_y)) / double(1LL << s_y);
       double tanh_x = tanh(dbl_x);
       uint64_t err = computeULPErr(dbl_y, tanh_x, s_y);
-      // cout << "ULP Error: " << dbl_x << "," << dbl_y << "," << tanh_x << ","
-      // << err << endl;
+      cout << "ULP Error: " << dbl_x << "," << dbl_y << "," << tanh_x << ","
+      << err << endl;
       total_err += err;
       max_ULP_err = std::max(max_ULP_err, err);
     }

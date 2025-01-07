@@ -19,6 +19,8 @@
 #include <string>
 #include <vector>
 
+
+#define MAX_THREADS 4
 using namespace sci;
 using namespace std;
 namespace plt = matplotlibcpp;
@@ -27,6 +29,9 @@ int party, port = 32000;
 string address = "127.0.0.1";
 IOPack *iopack;
 OTPack *otpack;
+// int num_threads = 4;
+// IOPack *iopack[MAX_THREADS];
+// OTPack *otpack[MAX_THREADS];
 LinearOT *prod;
 XTProtocol *ext;
 
@@ -44,9 +49,11 @@ uint64_t lb = 10;
 uint64_t la = 10; // la=5 f=5,la=14,f=12
 uint64_t f = 12;
 uint64_t s = 6;
-int dim = 4096 * 8;
+int dim = 4096 *10 ;
+// int dim = 100;
 uint64_t acc = 2;
-uint64_t init_input = 2080768;
+// uint64_t init_input = 1032192-10;
+uint64_t init_input = 2080768-10;
 uint64_t step_size = 1;
 uint64_t correct = 1;
 
@@ -169,12 +176,18 @@ void DReLU_Eq(uint64_t *inA, uint8_t *b, uint8_t *b_, uint64_t dim, uint64_t bwl
         // std::cout << "m[" << i << "] = " << static_cast<int>(m[i]) << std::endl;
         y[i] = inA[i] & mask_l_sub1;
     }
+    std::cout << "mask_l_sub1 = " << mask_l_sub1 << std::endl;
     uint64_t *comp_eq_input = new uint64_t[dim];
+
+
     if (party == ALICE)
     {
         for (int i = 0; i < dim; i++)
         {
-            comp_eq_input[i] = (mask_l_sub1 - y[i]) & mask_l_sub1;
+            comp_eq_input[i] = (mask_l_sub1  - y[i]) & mask_l_sub1;
+            std::cout << "inA[" << i << "] = " << inA[i] << std::endl;
+            std::cout << "y[" << i << "] = " << y[i] << std::endl;
+            std::cout << "comp_eq_input[" << i << "] = " << comp_eq_input[i] << std::endl;
         }
     }
     else
@@ -182,17 +195,28 @@ void DReLU_Eq(uint64_t *inA, uint8_t *b, uint8_t *b_, uint64_t dim, uint64_t bwl
         for (int i = 0; i < dim; i++)
         {
             comp_eq_input[i] = y[i] & mask_l_sub1;
+            std::cout << "inA[" << i << "] = " << inA[i] << std::endl;
+            std::cout << "y[" << i << "] = " << y[i] << std::endl;
+            std::cout << "comp_eq_input[" << i << "] = " << comp_eq_input[i] << std::endl;
         }
     }
+
+
+
     uint8_t *carry = new uint8_t[dim];
     uint8_t *res_eq = new uint8_t[dim];
-    mill_eq->compare_with_eq(carry, res_eq, comp_eq_input, dim, bwl - 1);
+    mill_eq->compare_with_eq(carry, res_eq, comp_eq_input, dim, bwl - 1, false);
+    for (int i = 0; i < dim; i++)
+    {
+        std::cout << "carry[" << i << "] = " << static_cast<int>(carry[i]) << std::endl;
+        // std::cout << "res_eq[" << i << "] = " << static_cast<int>(res_eq[i]) << std::endl;
+    }
     if (party == ALICE)
     {
         for (int i = 0; i < dim; i++)
         {
-            // b[i] = carry[i] ^ 1 ^ m[i];
-            b[i] = carry[i] ^ m[i];
+            b[i] = carry[i] ^ 1 ^ m[i];
+            // b[i] = carry[i] ^ m[i];
         }
     }
     else
@@ -204,24 +228,24 @@ void DReLU_Eq(uint64_t *inA, uint8_t *b, uint8_t *b_, uint64_t dim, uint64_t bwl
     }
 
     aux->AND(res_eq, m, b_, dim);
-    if (party == ALICE)
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            // b[i] = carry[i] ^ 1 ^ m[i];
-            b[i] = carry[i] ^ m[i] ^ b_[i];
-        }
-    }
-    else
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            b[i] = carry[i] ^ m[i] ^ b_[i];
-        }
-    }
+    // if (party == ALICE)
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         // b[i] = carry[i] ^ 1 ^ m[i];
+    //         b[i] = carry[i] ^ m[i] ^ b_[i];
+    //     }
+    // }
+    // else
+    // {
+    //     for (int i = 0; i < dim; i++)
+    //     {
+    //         b[i] = carry[i] ^ m[i] ^ b_[i];
+    //     }
+    // }
 }
 
-int third_interval(uint64_t *input_data, uint8_t *res_drelu_cmp, uint8_t *res_drelu_eq, uint8_t *res_eq)
+void third_interval(uint64_t *input_data, uint8_t *res_drelu_cmp, uint8_t *res_drelu_eq, uint8_t *res_eq)
 {
     mill_eq = new MillionaireWithEquality(party, iopack, otpack);
     trunc_oracle = new Truncation(party, iopack, otpack);
@@ -250,7 +274,13 @@ int third_interval(uint64_t *input_data, uint8_t *res_drelu_cmp, uint8_t *res_dr
     // ERELU_EQ
     // auto time_start = std::chrono::high_resolution_clock::now();
     uint64_t DReLU_Eq_start = iopack->get_comm();
+
     DReLU_Eq(outtrunc, res_drelu_cmp, res_drelu_eq, dim, bwL - d);
+        for (int i = 0; i < dim; i++)
+    {
+        std::cout << "outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
+        std::cout << "res_drelu_eq[" << i << "] = " << static_cast<int>(res_drelu_eq[i]) << std::endl;
+    }
     uint64_t DReLU_Eq_end = iopack->get_comm();
     // auto time_end = std::chrono::high_resolution_clock::now();
 
@@ -259,25 +289,36 @@ int third_interval(uint64_t *input_data, uint8_t *res_drelu_cmp, uint8_t *res_dr
     // {
     //     comp_eq_input[i] = (addfor + outtrunc[i]) & mask_bwL; // 这里应该mod 多少？
     // }
-    uint64_t mask_l_sub1 = ((bwL - d - 1) == 64) ? ~0ULL : (1ULL << (bwL - d - 1)) - 1;
+    // uint64_t mask_l_sub1 = ((bwL - d - 1) == 64) ? ~0ULL : (1ULL << (bwL - d - 1)) - 1;
+    uint64_t mask_l_sub1 = ((bwL - d ) == 64) ? ~0ULL : (1ULL << (bwL - d )) - 1;
     // auto time_start = std::chrono::high_resolution_clock::now();
+
+
+    // std::cout << "mask_l_sub1 " << mask_l_sub1 << std::endl;
+
     if (party == ALICE)
     {
         for (int i = 0; i < dim; i++)
         {
-            comp_eq_input[i] = (mask_l_sub1 - outtrunc[i]) & mask_l_sub1;
+            std::cout << "ttt[" << i << "] = " << outtrunc[i] << std::endl;
+            comp_eq_input[i] = (mask_l_sub1 + 1 - outtrunc[i]) & mask_l_sub1;
+            std::cout << "comp_eq_input[" << i << "] = " << comp_eq_input[i] << std::endl;
+            // comp_eq_input[i] =  outtrunc[i] & mask_l_sub1;
         }
     }
     else
     {
         for (int i = 0; i < dim; i++)
         {
+            std::cout << "ttt[" << i << "] = " << outtrunc[i] << std::endl;
             comp_eq_input[i] = outtrunc[i] & mask_l_sub1;
+            std::cout << "comp_eq_input[" << i << "] = " << comp_eq_input[i] << std::endl;
         }
     }
     // uint64_t compare_with_eq_start = iopack->get_comm();
-    // mill_eq->compare_with_eq(res_cmp, res_eq, comp_eq_input, dim, bwL - d); //
+    // mill_eq->compare_with_eq(res_cmp, res_eq, comp_eq_input, dim, bwL - d -1 ); //
     eq->check_equality(res_eq, comp_eq_input, dim, bwL - d);
+
     // uint64_t compare_with_eq_end = iopack->get_comm();
     auto time_end = std::chrono::high_resolution_clock::now();
 
@@ -295,8 +336,16 @@ int third_interval(uint64_t *input_data, uint8_t *res_drelu_cmp, uint8_t *res_dr
     //     std::cout << "res_cmp[" << i << "] = " << static_cast<int>(res_cmp[i]) << std::endl;
     //     std::cout << "res_drelu_eq[" << i << "] = " << static_cast<int>(res_drelu_eq[i]) << std::endl; // right
     // }
+}
 
-    return 1;
+uint64_t computeULPErr(double calc, double actual, int SCALE)
+{
+    int64_t calc_fixed = (double(calc) * (1ULL << SCALE));
+    int64_t actual_fixed = (double(actual) * (1ULL << SCALE));
+    uint64_t ulp_err = (calc_fixed - actual_fixed) > 0
+                           ? (calc_fixed - actual_fixed)
+                           : (actual_fixed - calc_fixed);
+    return ulp_err;
 }
 
 //////////////////////
@@ -431,6 +480,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         inA[i] = (0 + i * 0) & mask_bwL;
         inB[i] = (init_input + i * step_size) & mask_bwL;
     }
+
     /////////////////////////////////////
     // 区间判断阶段
     /////////////////////////////////////
@@ -471,7 +521,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     {
         for (int i = 0; i < dim; i++)
         {
-            neg_inA[i] = ((-inA[i]) & mask_bwL); // 取反
+            neg_inA[i] = ((-inA[i]-1) & mask_bwL); // 取反
         }
         select_share(Drelu, inA, neg_inA, EMUX_output_x, dim, bwL); // step 10
         // aux->multiplexerabs(Drelu, inA, EMUX_output_x, dim, bwL, bwL);
@@ -633,8 +683,8 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         if (party == ALICE)
         {
             // std::cout << "inA_h[" << 0 << "] = " << inA_h[0] << std::endl;
-            // std::cout << "a_alice[" << 0 << "] = " << a_alice[0] << std::endl;
-            // std::cout << "EMUX_output_x[" << 0 << "] = " << EMUX_output_x[0] << std::endl;
+            std::cout << "a_alice[" << 1 << "] = " << a_alice[1] << std::endl;
+            std::cout << "EMUX_output_x[" << 1 << "] = " << EMUX_output_x[1] << std::endl;
             // prod->hadamard_product_MSB(dim, a_alice, EMUX_output_x, outax, la, bwL, la + bwL, true, true, mode, msb1, msb2);
             prod->hadamard_product(dim, a_alice, EMUX_output_x, outax, la, bwL, la + bwL, true, true, mode, msb1, msb2); // step 13 mul
             // std::cout << "outax[" << 0 << "] = " << outax[0] << std::endl;
@@ -642,8 +692,8 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         else
         {
             // std::cout << "inB_h[" << 0 << "] = " << inB_h[0] << std::endl;
-            // std::cout << "a_bob[" << 0 << "] = " << a_bob[0] << std::endl;
-            // std::cout << "EMUX_output_x[" << 0 << "] = " << EMUX_output_x[0] << std::endl;
+            std::cout << "a_bob[" << 1 << "] = " << a_bob[1] << std::endl;
+            std::cout << "EMUX_output_x[" << 1 << "] = " << EMUX_output_x[1] << std::endl;
             // prod->hadamard_product_MSB(dim, a_bob, EMUX_output_x, outax, la, bwL, la + bwL, true, true, mode, msb1, msb2);
             prod->hadamard_product(dim, a_bob, EMUX_output_x, outax, la, bwL, la + bwL, true, true, mode, msb1, msb2);
             // std::cout << "outax[" << 0 << "] = " << outax[0] << std::endl;
@@ -741,8 +791,8 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
 
     for (int i = 0; i < dim; i++)
     {
-        // std::cout << "b_SExt[" << i << "] = " << b_SExt[i] << std::endl;
-        // std::cout << "outax[" << i << "] = " << outax[i] << std::endl;
+        std::cout << "b_SExt[" << i << "] = " << b_SExt[i] << std::endl;
+        std::cout << "outax[" << i << "] = " << outax[i] << std::endl;
     }
     // std::cout << "outax[" << 0 << "] = " << outax[0] << std::endl;
     uint64_t mask_d = (f + 1 == 64 ? -1 : ((1ULL << f + 1) - 1));
@@ -800,8 +850,8 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     uint64_t *abs_xhalf = new uint64_t[dim];
     uint64_t *bitMul_wrap = new uint64_t[dim];
     uint64_t *out_last_bitwrap = new uint64_t[dim];
-    if (acc == 2)
-    {
+    // if (acc == 2)
+    // {
         std::cout << "acc == 2" << std::endl;
         if (party == ALICE)
         {
@@ -831,27 +881,27 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         uint64_t *neg_abs_xhalf = new uint64_t[dim];
         for (int i = 0; i < dim; i++)
         {
-            neg_abs_xhalf[i] = -abs_xhalf[i] & mask_bwL;
+            neg_abs_xhalf[i] = (-abs_xhalf[i]) & mask_bwL;
         }
         select_share(Drelu, abs_xhalf, neg_abs_xhalf, xhalf, dim, bwL); // step 22 ss
-    }
-    else
-    {
-        if (party == ALICE)
-        {
-            for (int i = 0; i < dim; i++)
-            {
-                xhalf[i] = (inA[i] >> 1) & mask_bwL;
-            }
-        }
-        else
-        {
-            for (int i = 0; i < dim; i++)
-            {
-                xhalf[i] = (inB[i] >> 1) & mask_bwL;
-            }
-        }
-    }
+    // }
+    // else
+    // {
+    //     if (party == ALICE)
+    //     {
+    //         for (int i = 0; i < dim; i++)
+    //         {
+    //             xhalf[i] = (inA[i] >> 1) & mask_bwL;
+    //         }
+    //     }
+    //     else
+    //     {
+    //         for (int i = 0; i < dim; i++)
+    //         {
+    //             xhalf[i] = (inB[i] >> 1) & mask_bwL;
+    //         }
+    //     }
+    // }
 
     for (int i = 0; i < dim; i++)
     {
@@ -868,7 +918,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     uint64_t *delta = new uint64_t[dim];
     for (int i = 0; i < dim; i++)
     {
-        delta[i] = (abs_xhalf[i] - z[i]) & mask_bwL;
+        abs_xhalf[i] = (abs_xhalf[i]) & mask_bwL;
     }
 
     std::cout << "\n=========STEP17 |g|=delta_ + x_half ===========" << std::endl;
@@ -885,17 +935,30 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     for (int i = 0; i < dim; i++)
     {
         Drelu_[i] = (outb_star[i] + outb_sharp[i]) & 1;
+        if (party == ALICE)
+        {
+            Drelu_[i] = Drelu_[i] ^ 1;
+        }
     }
+    
+
     select_share(Drelu_, abs_xhalf, z, MUX_output_g, dim, bwL); // step 20 ss
+
+
     int64_t STEP21_comm_end = iopack->get_comm();
     for (int i = 0; i < dim; i++)
     {
-        // std::cout << "Drelu_[" << i << "] = " << static_cast<int>(Drelu_[i]) << std::endl;
+        std::cout << "outb[" << i << "] = " << static_cast<int>(outb[i]) << std::endl;
+        std::cout << "outb_star[" << i << "] = " << static_cast<int>(outb_star[i]) << std::endl;
+        std::cout << "outb_sharp[" << i << "] = " << static_cast<int>(outb_sharp[i]) << std::endl;
+        std::cout << "Drelu_[" << i << "] = " << static_cast<int>(Drelu_[i]) << std::endl;
         // std::cout << "delta_[" << i << "] = " << delta_[i] << std::endl;
-        // std::cout << "z[" << i << "] = " << z[i] << std::endl;
-        // MUX_output_g[i] = (delta_[i] + z[i]) & mask_bwL;
-
-        // std::cout << "MUX_output_g[" << i << "] = " << MUX_output_g[i] << std::endl;
+        std::cout << "z[" << i << "] = " << z[i] << std::endl;
+        // MUX_output_g[i] = (delta_[i] + z[i]) & mask_bwL;abs_xhalf
+        std::cout << "abs_xhalf[" << i << "] = " << abs_xhalf[i] << std::endl;
+        std::cout << "neg_abs_xhalf[" << i << "] = " << neg_abs_xhalf[i] << std::endl;
+        std::cout << "xhalf[" << i << "] = " << xhalf[i] << std::endl;
+        std::cout << "MUX_output_g[" << i << "] = " << MUX_output_g[i] << std::endl;
     }
     uint64_t comm_end = iopack->get_comm();
     std::cout << "\n=========STEP19 y = xhalf + u + v ===========" << std::endl;
@@ -941,15 +1004,17 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         std::vector<double> x_real, y_real;
         double *ULPs = new double[dim];
         double f_pow = pow(2, f);
+        int s_y = 12;
         for (int i = 0; i < dim; i++)
         {
-            // std::cout << "dim [" << i << "]total y = y0 + y1 =  " << ((y[i] + recv_y[i]) & mask_bwL) << ", real num: " << (double)decode_ring((y[i] + recv_y[i]) & mask_bwL, bwL) / f_pow << std::endl;
+            std::cout << "dim [" << i << "]total y = y0 + y1 =  " << ((y[i] + recv_y[i]) & mask_bwL) << ", real num: " << (double)decode_ring((y[i] + recv_y[i]) & mask_bwL, bwL) / f_pow << std::endl;
 
             // std::cout << "ax +b =  " << (((inA[i] + inB[i]) * a_bob[i] + b_bob[i]) & mask_bwL) << std::endl;
             // std::cout << "ax +b  >> 12=  " << ((((inA[i] + inB[i]) * a_bob[i] + b_bob[i]) & mask_bwL) >> 12) << std::endl;
-            // std::cout << "The result " << inA[i] + inB[i] << " should be calculate_GELU = " << calculate_GELU(inA[i] + inB[i]) << std::endl;
+            std::cout << "The result " << inA[i] + inB[i] << " should be calculate_GELU = " << calculate_GELU(inA[i] + inB[i]) << std::endl;
             ULPs[i] = abs((((double)decode_ring((y[i] + recv_y[i]) & mask_bwL, bwL) / f_pow) - calculate_GELU(inA[i] + inB[i])) / 0.000244140625);
-            // std::cout << "The ULP is = " << ULPs[i] << std::endl;
+            // ULPs[i] = computeULPErr(((double)decode_ring((y[i] + recv_y[i]) & mask_bwL, bwL) / f_pow), calculate_GELU(inA[i] + inB[i]), s_y);
+            std::cout << "The ULP is = " << ULPs[i] << std::endl;
 
             x_values.push_back((inA[i] + inB[i]) / (uint64_t)f_pow);
             y_values.push_back((double)decode_ring((y[i] + recv_y[i]) & mask_bwL, bwL) / (uint64_t)f_pow);
@@ -1003,7 +1068,6 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         file << la << "," << lb << ",  " << average << ",   " << max_val << "  , " << total_comm << ",    " << total_time << "\n";
     }
 
-
     ///////////输出时间和通信
 
     // cout << "STEP3 MSBnew Bytes Sent: " << (STEP3_comm_end - STEP3_comm_start) / dim * 8 << " bits" << endl;
@@ -1053,8 +1117,23 @@ int main(int argc, char **argv)
     iopack = new IOPack(party, port, "127.0.0.1");
     otpack = new OTPack(iopack, party);
 
+    // for (int i = 0; i < num_threads; i++)
+    // {
+    //     iopack[i] = new IOPack(party, port + i, address);
+    //     if (i & 1)
+    //     {
+    //         otpack[i] = new OTPack(iopack[i], 3 - party);
+    //     }
+    //     else
+    //     {
+    //         otpack[i] = new OTPack(iopack[i], party);
+    //     }
+    // }
+
     std::vector<std::pair<uint64_t, uint64_t>> la_lb_pairs = {
-        {8, 12}, {7, 12}, {6, 12}, {6, 11}, {5, 12}, {5, 10}, {4, 12}, {4, 10}};
+        // {12, 12}};
+        // {5, 10}};
+    {8, 12}, {7, 12}, {6, 12}, {6, 11}, {5, 12}, {5, 10}, {4, 12}, {4, 10}};
 
     for (const auto &pair : la_lb_pairs)
     {
