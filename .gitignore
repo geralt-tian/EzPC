@@ -17,5 +17,5 @@ SEAL
 # *.csv
 *.out
 GPU-MPC/experiments/sigma/sigma_offline_online
-SCI/extern/eigen/
-SCI/matplotlib-cpp/
+# SCI/extern/
+# SCI/matplotlib-cpp/
