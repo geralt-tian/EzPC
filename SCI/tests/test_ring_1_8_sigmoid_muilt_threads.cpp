@@ -88,7 +88,12 @@ double calculate_tanh(double value)
     return std::tanh(value);
 }
 
-void tanh_thread(int32_t tid, uint64_t *x, uint64_t *y, int32_t num_ops, int32_t bwL, int32_t la, int32_t lb, int32_t s, int32_t f)
+double calculate_sigmoid(double value)
+{
+    return 1.0 / (1.0 + std::exp(-value));
+}
+
+void sigmoid_thread(int32_t tid, uint64_t *x, uint64_t *y, int32_t num_ops, int32_t bwL, int32_t la, int32_t lb, int32_t s, int32_t f)
 {
     MathFunctions *math;
     if (tid & 1)
@@ -99,7 +104,7 @@ void tanh_thread(int32_t tid, uint64_t *x, uint64_t *y, int32_t num_ops, int32_t
     {
         math = new MathFunctions(party, iopackArr[tid], otpackArr[tid]);
     }
-    math->tanh(num_ops, x, y, bwL, la, lb, s, f);
+    math->sigmoid(num_ops, x, y, bwL, la, lb, s, f);
 
     delete math;
 }
@@ -111,7 +116,7 @@ int main(int argc, char **argv)
     ArgMapping amap;
     amap.arg("r", party, "Role of party: ALICE = 1; BOB = 2");
     amap.arg("p", port, "Port Number");
-    amap.arg("N", dim, "Number of tanh operations");
+    amap.arg("N", dim, "Number of sigmoid operations");
     amap.arg("nt", num_threads, "Number of threads");
     amap.arg("ip", address, "IP Address of server (ALICE)");
 
@@ -173,7 +178,7 @@ int main(int argc, char **argv)
         thread_comm[i] = iopackArr[i]->get_comm();
     }
     auto start = clock_start();
-    std::thread tanh_threads[num_threads];
+    std::thread sigmoid_threads[num_threads];
     int chunk_size = dim / num_threads;
 
     for (int i = 0; i < num_threads; ++i)
@@ -189,12 +194,12 @@ int main(int argc, char **argv)
             lnum_ops = chunk_size;
         }
 
-        tanh_threads[i] =
-            std::thread(tanh_thread, i, x + offset, y + offset, lnum_ops, bwL, la, lb, s, f);
+        sigmoid_threads[i] =
+            std::thread(sigmoid_thread, i, x + offset, y + offset, lnum_ops, bwL, la, lb, s, f);
     }
     for (int i = 0; i < num_threads; ++i)
     {
-        tanh_threads[i].join();
+        sigmoid_threads[i].join();
     }
     long long t = time_from(start);
 
@@ -224,9 +229,9 @@ int main(int argc, char **argv)
         {
             double dbl_x = (signed_val(x0[i] + x[i], bw_x)) / double(1LL << s_x);
             double dbl_y = (signed_val(y0[i] + y[i], bw_y)) / double(1LL << s_y);
-            double tanh_x = calculate_tanh(dbl_x);
-            uint64_t err = computeULPErr(dbl_y, tanh_x, s_y);
-            cout << "ULP["<<i<<"] Error: " << dbl_x << "," << dbl_y << "," << tanh_x << ","
+            double sigmoid_x = calculate_sigmoid(dbl_x);
+            uint64_t err = computeULPErr(dbl_y, sigmoid_x, s_y);
+            cout << "ULP["<<i<<"] Error: " << dbl_x << "," << dbl_y << "," << sigmoid_x << ","
                  << err << endl;
             total_err += err;
             max_ULP_err = std::max(max_ULP_err, err);
@@ -240,9 +245,9 @@ int main(int argc, char **argv)
         delete[] y0;
     }
 
-    cout << "Number of tanh/s:\t" << (double(dim) / t) * 1e6 << std::endl;
-    cout << "Tanh Time\t" << t / (1000.0) << " ms" << endl;
-    cout << "Tanh Bytes Sent\t" << total_comm << " bytes" << endl;
+    cout << "Number of sigmoid/s:\t" << (double(dim) / t) * 1e6 << std::endl;
+    cout << "sigmoid Time\t" << t / (1000.0) << " ms" << endl;
+    cout << "sigmoid Bytes Sent\t" << total_comm << " bytes" << endl;
 
     /******************* Cleanup ****************/
     /********************************************/

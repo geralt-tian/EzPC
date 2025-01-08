@@ -85,6 +85,10 @@ public:
   void gelu(int32_t dim, uint64_t *x, uint64_t *y, int32_t bwL, 
              int32_t la,int32_t lb,int32_t s,int32_t f);
 
+    void tanh(int32_t dim, uint64_t *x, uint64_t *y, int32_t bwL, 
+             int32_t la,int32_t lb,int32_t s,int32_t f);
+      void sigmoid(int32_t dim, uint64_t *x, uint64_t *y, int32_t bwL, 
+             int32_t la,int32_t lb,int32_t s,int32_t f);
   void sqrt(int32_t dim, uint64_t *x, uint64_t *y, int32_t bw_x, int32_t bw_y,
             int32_t s_x, int32_t s_y, bool inverse = false);
 

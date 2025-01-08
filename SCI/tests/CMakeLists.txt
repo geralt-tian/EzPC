@@ -57,6 +57,7 @@ add_test_OT(12_23_ELU_final)
 add_test_OT(12_24_tanh_final)
 add_test_OT(1_7_Tanh_muilt_threads)
 add_test_OT(12_25_sigmoid_final)
+add_test_OT(1_8_sigmoid_muilt_threads)
 
 add_test_HE(relu)
 add_test_HE(maxpool)
