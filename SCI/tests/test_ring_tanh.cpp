@@ -27,15 +27,16 @@ SOFTWARE.
 using namespace sci;
 using namespace std;
 
-#define MAX_THREADS 1
+#define MAX_THREADS 32
 
 int party, port = 32000;
-int num_threads = 1;
+int num_threads = 32;
 string address = "127.0.0.1";
 
-int dim = 4096*8;
-int bw_x = 16;
-int bw_y = 16;
+// int dim = 4096*8;
+ int dim = 1048576;
+int bw_x = 21;
+int bw_y = 21;
 int s_x = 12;
 int s_y = 12;
 
@@ -108,7 +109,7 @@ int main(int argc, char **argv) {
   // else
   // {
   //     for (int i = 0; i < dim; i++) {
-  //   x[i] = (dim - 16383) & mask_x;
+  //   x[i] = (i - 16383) & mask_x;
   // }
   // }
   prg.random_data(x, dim * sizeof(uint64_t));
@@ -172,7 +173,7 @@ int main(int argc, char **argv) {
       total_err += err;
       max_ULP_err = std::max(max_ULP_err, err);
     }
-
+    cerr << "total_err: " << total_err<< endl;
     cerr << "Average ULP error: " << total_err / dim << endl;
     cerr << "Max ULP error: " << max_ULP_err << endl;
     cerr << "Number of tests: " << dim << endl;

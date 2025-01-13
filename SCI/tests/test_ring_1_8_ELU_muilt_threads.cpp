@@ -27,13 +27,13 @@ SOFTWARE.
 using namespace sci;
 using namespace std;
 
-#define MAX_THREADS 4
+#define MAX_THREADS 32
 
 int party, port = 32000;
-int num_threads = 4;
+int num_threads = 32;
 string address = "127.0.0.1";
 
-int dim = 4096*8;
+int dim = 1048576;
 // int dim = 500;
 int bw_x = 21;
 int bw_y = 21;
@@ -128,8 +128,12 @@ int main(int argc, char **argv)
     amap.parse(argc, argv);
 
     assert(num_threads <= MAX_THREADS);
-    int32_t la = 5;
-    int32_t lb = 10;
+    int32_t la = 4;
+    int32_t lb = 9;
+    // int32_t la = 5;
+    // int32_t lb = 10;
+    // int32_t la = 8;
+    // int32_t lb = 12;
     int32_t s = 7;
     int32_t f = 12;
     int32_t bwL = 21;

@@ -27,13 +27,13 @@ SOFTWARE.
 using namespace sci;
 using namespace std;
 
-#define MAX_THREADS 4
+#define MAX_THREADS 32
 
 int party, port = 32000;
-int num_threads = 4;
+int num_threads = 32;
 string address = "127.0.0.1";
 
-int dim = 4096 * 8;
+int dim = 1048576;
 // int dim = 500;
 int bw_x = 21;
 int bw_y = 21;
@@ -95,15 +95,19 @@ int main(int argc, char **argv)
     ArgMapping amap;
     amap.arg("r", party, "Role of party: ALICE = 1; BOB = 2");
     amap.arg("p", port, "Port Number");
-    amap.arg("N", dim, "Number of tanh operations");
+    amap.arg("N", dim, "Number of GELU operations");
     amap.arg("nt", num_threads, "Number of threads");
     amap.arg("ip", address, "IP Address of server (ALICE)");
 
     amap.parse(argc, argv);
 
     assert(num_threads <= MAX_THREADS);
-    int32_t la = 5;
-    int32_t lb = 10;
+    int32_t la = 4;
+    int32_t lb = 9;
+    // int32_t la = 5;
+    // int32_t lb = 10;
+    // int32_t la = 8;
+    // int32_t lb = 12;
     int32_t s = 6;
     int32_t f = 12;
     int32_t bwL = 21;
@@ -138,7 +142,7 @@ int main(int argc, char **argv)
     // else
     // {
     //     for (int i = 0; i < dim; i++) {
-    //   x[i] = (i) & mask_x;
+    //   x[i] = (i - 16384) & mask_x;
     // }
     // }
     prg.random_data(x, dim * sizeof(uint64_t));
@@ -157,7 +161,7 @@ int main(int argc, char **argv)
         thread_comm[i] = iopackArr[i]->get_comm();
     }
     auto start = clock_start();
-    std::thread tanh_threads[num_threads];
+    std::thread GELU_threads[num_threads];
     int chunk_size = dim / num_threads;
 
     for (int i = 0; i < num_threads; ++i)
@@ -173,12 +177,12 @@ int main(int argc, char **argv)
             lnum_ops = chunk_size;
         }
 
-        tanh_threads[i] =
+        GELU_threads[i] =
             std::thread(gelu_thread, i, x + offset, y + offset, lnum_ops, bwL, la, lb, s, f);
     }
     for (int i = 0; i < num_threads; ++i)
     {
-        tanh_threads[i].join();
+        GELU_threads[i].join();
     }
     long long t = time_from(start);
 
@@ -224,9 +228,9 @@ int main(int argc, char **argv)
         delete[] y0;
     }
 
-    cout << "Number of tanh/s:\t" << (double(dim) / t) * 1e6 << std::endl;
-    cout << "Tanh Time\t" << t / (1000.0) << " ms" << endl;
-    cout << "Tanh Bytes Sent\t" << total_comm << " bytes" << endl;
+    cout << "Number of GELU/s:\t" << (double(dim) / t) * 1e6 << std::endl;
+    cout << "GELU Time\t" << t / (1000.0) << " ms" << endl;
+    cout << "GELU Bytes Sent\t" << total_comm << " bytes" << endl;
 
     /******************* Cleanup ****************/
     /********************************************/

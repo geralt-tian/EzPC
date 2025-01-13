@@ -63,7 +63,8 @@ AuxProtocols *aux;
 MillionaireWithEquality *mill_eq;
 Equality *eq;
 
-int dim = 4096 * 16;
+// int dim = 4096 * 16;
+uint64_t dim = 1048576;
 // int dim = 1024;
 uint64_t acc = 2;
 // uint64_t init_input = 2097000; //左边区间
@@ -110,6 +111,16 @@ double calculate_ELU(uint64_t value, uint64_t f_ELU, double alpha = 1.0)
     {
         return alpha * (std::exp(x) - 1.0);
     }
+}
+
+uint64_t computeULPErr(double calc, double actual, int SCALE)
+{
+    int64_t calc_fixed = (double(calc) * (1ULL << SCALE));
+    int64_t actual_fixed = (double(actual) * (1ULL << SCALE));
+    uint64_t ulp_err = (calc_fixed - actual_fixed) > 0
+                           ? (calc_fixed - actual_fixed)
+                           : (actual_fixed - calc_fixed);
+    return ulp_err;
 }
 
 int64_t decode_ring(uint64_t input, uint64_t bw)
@@ -321,7 +332,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     std::vector<std::vector<uint64_t>> data;
     if (party == ALICE)
     {
-        std::ifstream file("/home/lzq/EzPC/elu_la10_ld10_s7_test.csv");
+        std::ifstream file("/home/ubuntu/EzPC/elu_la10_ld10_s7_test.csv");
         if (!file.is_open())
         {
             std::cerr << "fail to open the file!" << std::endl;
@@ -729,11 +740,13 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         // iopack->io->recv_data(&recv_Total_MSBytes_ALICE, sizeof(double));
         double *ULPs = new double[dim];
         double f_pow = pow(2, f);
+        int s_y = 12;
         for (int i = 0; i < dim; i++)
         {
             // std::cout << "dim [" << i << "]total y = y0 + y1 =  " << ((y[i] + recv_y[i]) & mask_bwL) << ", real num: " << (double)decode_ring((y[i] + recv_y[i]) & mask_bwL, bwL) / f_pow << std::endl;
             // std::cout << "The result " << inA[i] + inB[i] << " should be calculate_ELU = " << calculate_ELU(inA[i] + inB[i], f) << std::endl;
-            ULPs[i] = abs((((double)decode_ring((y[i] + recv_y[i]) & mask_bwL, bwL) / f_pow) - calculate_ELU(inA[i] + inB[i], f)) / 0.000244140625);
+            // ULPs[i] = abs((((double)decode_ring((y[i] + recv_y[i]) & mask_bwL, bwL) / f_pow) - calculate_ELU(inA[i] + inB[i], f)) / 0.000244140625);
+            ULPs[i] = computeULPErr(((double)decode_ring((y[i] + recv_y[i]) & mask_bwL, bwL) / f_pow), calculate_ELU(inA[i] + inB[i],12), s_y);
             // std::cout << "The ULP is = " << ULPs[i] << std::endl;
         }
         double sum = 0.0;
@@ -758,7 +771,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
 
         uint64_t bob_comm = (comm_end - comm_start) / dim * 8;
         uint64_t total_comm = bob_comm + alice_comm[0];
-        std::ofstream file("/home/lzq/EzPC/elu_output_data.csv", std::ios_base::app);
+        std::ofstream file("/home/ubuntu/EzPC/elu_output_data.csv", std::ios_base::app);
 
         // std::ofstream file("/home/lzq/EzPC/tanh_output_data.csv");
         if (!file.is_open())
@@ -816,7 +829,27 @@ int main(int argc, char **argv)
     prod = new LinearOT(party, iopack, otpack);
 
     std::vector<std::pair<uint64_t, uint64_t>> la_lb_pairs = {
-        {8, 12}, {7, 12}, {6, 12}, {6, 11}, {5, 12}, {5, 10}, {4, 12}, {4, 10}};
+        {4, 9},
+        {4, 10},
+        {4, 11},
+        {4, 12},
+        {5, 9},
+        {5, 10},
+        {5, 11},
+        {5, 12},
+        {6, 9},
+        {6, 10},
+        {6, 11},
+        {6, 12},
+        {7, 9},
+        {7, 10},
+        {7, 11},
+        {7, 12},
+        {8, 9},
+        {8, 10},
+        {8, 11},
+        {8, 12}};
+        // {8, 12}, {7, 12}, {6, 12}, {6, 11}, {5, 12}, {5, 10}, {4, 12}, {4, 10}};
 
     for (const auto &pair : la_lb_pairs)
     {

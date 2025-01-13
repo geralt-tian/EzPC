@@ -46,6 +46,7 @@ uint64_t la = 10; // la=5 f=5,la=14,f=12
 uint64_t f = 12;
 uint64_t s = 6;
 uint64_t dim = 4096 * 16;
+// uint64_t dim = 1048576;
 uint64_t init_input = 2064384;
 // uint64_t dim = 1024;
 // uint64_t init_input = 0;
@@ -117,6 +118,16 @@ double calculate_sigmoid(uint64_t value, uint64_t f_sigmoid)
 
     // 计算 sigmoid 函数值
     return 1.0 / (1.0 + std::exp(-x));
+}
+
+uint64_t computeULPErr(double calc, double actual, int SCALE)
+{
+    int64_t calc_fixed = (double(calc) * (1ULL << SCALE));
+    int64_t actual_fixed = (double(actual) * (1ULL << SCALE));
+    uint64_t ulp_err = (calc_fixed - actual_fixed) > 0
+                           ? (calc_fixed - actual_fixed)
+                           : (actual_fixed - calc_fixed);
+    return ulp_err;
 }
 
 int64_t decode_ring(uint64_t input, uint64_t bw)
@@ -359,7 +370,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     std::vector<std::vector<uint64_t>> data;
     if (party == ALICE)
     {
-        std::ifstream file("/home/lzq/EzPC/sigmoid_la_ld_s6.csv");
+        std::ifstream file("/home/ubuntu/EzPC/sigmoid_la_ld_s6.csv");
         if (!file.is_open())
         {
             std::cerr << "fail to open the file!" << std::endl;
@@ -924,13 +935,15 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         std::vector<double> x_real, y_real;
         double *ULPs = new double[dim];
         double f_pow = pow(2, f);
+        int s_y = 12;
         for (int i = 0; i < dim; i++)
         {
             // std::cout << "dim [" << i << "]total y = y0 + y1 =  " << ((y[i] + recv_y[i]) & mask_bwL) << ", real num: " << (double)decode_ring((y[i] + recv_y[i]) & mask_bwL, bwL) / f_pow << std::endl;
             // std::cout << "ax +b =  " << (((inA[i] + inB[i]) * a_bob[i] + b_bob[i]) & mask_bwL) << std::endl;
             // std::cout << "ax +b  >> 12=  " << ((((inA[i] + inB[i]) * a_bob[i] + b_bob[i]) & mask_bwL) >> 12) << std::endl;
             // std::cout << "The result " << inA[i] + inB[i] << " should be calculate_sigmoid = " << calculate_sigmoid(inA[i] + inB[i], f) << std::endl;
-            ULPs[i] = abs((((double)decode_ring((y[i] + recv_y[i]) & mask_bwL, bwL) / f_pow) - calculate_sigmoid(inA[i] + inB[i], f)) / 0.000244140625);
+            // ULPs[i] = abs((((double)decode_ring((y[i] + recv_y[i]) & mask_bwL, bwL) / f_pow) - calculate_sigmoid(inA[i] + inB[i], f)) / 0.000244140625);
+            ULPs[i] = computeULPErr(((double)decode_ring((y[i] + recv_y[i]) & mask_bwL, bwL) / f_pow), calculate_sigmoid(inA[i] + inB[i],12), s_y);
             // std::cout << "The ULP is = " << ULPs[i] << std::endl;
             x_values.push_back((inA[i] + inB[i]) / (uint64_t)f_pow);
             y_values.push_back((double)decode_ring((y[i] + recv_y[i]) & mask_bwL, bwL) / (uint64_t)f_pow);
@@ -970,7 +983,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
 
         uint64_t bob_comm = (comm_end - comm_start) / dim * 8;
         uint64_t total_comm = bob_comm + alice_comm[0];
-        std::ofstream file("/home/lzq/EzPC/sigmoid_output_data.csv", std::ios_base::app);
+        std::ofstream file("/home/ubuntu/EzPC/sigmoid_output_data.csv", std::ios_base::app);
         if (!file.is_open())
         {
             std::cerr << "Error: Could not open file for writing." << std::endl;
@@ -1123,8 +1136,29 @@ int main(int argc, char **argv)
     otpack = new OTPack(iopack, party);
 
 
-    std::vector<std::pair<uint64_t, uint64_t>> la_lb_pairs = {
-        {8, 12}, {7, 12}, {6, 12}, {6, 11}, {5, 12}, {5, 10}, {4, 12}, {4, 10}};
+        std::vector<std::pair<uint64_t, uint64_t>> la_lb_pairs = {
+        {4, 9},
+        {4, 10},
+        {4, 11},
+        {4, 12},
+        {5, 9},
+        {5, 10},
+        {5, 11},
+        {5, 12},
+        {6, 9},
+        {6, 10},
+        {6, 11},
+        {6, 12},
+        {7, 9},
+        {7, 10},
+        {7, 11},
+        {7, 12},
+        {8, 9},
+        {8, 10},
+        {8, 11},
+        {8, 12}};
+    // std::vector<std::pair<uint64_t, uint64_t>> la_lb_pairs = {
+    //     {8, 12}, {7, 12}, {6, 12}, {6, 11}, {5, 12}, {5, 10}, {4, 12}, {4, 10}};
 
     for (const auto &pair : la_lb_pairs)
     {
