@@ -33,8 +33,8 @@ int party, port = 32000;
 int num_threads = 32;
 string address = "127.0.0.1";
 
-int dim = 4096*16;
-// int dim = 1048576;
+// int dim = 4096*16;
+int dim = 1048576;
 int bw_x = 21;
 int bw_y = 21;
 int s_x = 12;

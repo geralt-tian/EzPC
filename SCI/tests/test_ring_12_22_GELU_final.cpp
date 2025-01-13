@@ -1022,9 +1022,64 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     cout << "Total time: "
          << chrono::duration_cast<chrono::milliseconds>(time_end - time_start).count()
          << " ms" << endl;
-    delete[] inA;
-    delete[] inB;
-    delete[] outax;
+delete[] a_alice;
+delete[] b_alice;
+delete[] inA;
+delete[] inB;
+delete[] outax;
+delete[] outb;
+delete[] outb_star;
+delete[] outb_sharp;
+delete[] inA_h;
+delete[] inB_h;
+delete[] Drelu;
+delete[] msbA;
+delete[] msbB;
+delete[] wrap;
+delete[] EMUX_output_x;
+delete[] neg_inA;
+delete[] neg_inB;
+delete[] EMUX_output_x1;
+delete[] EMUX_output_x1_h;
+delete[] outtrunc;
+delete[] outtrunc1;
+delete[] outtrunc_a;
+delete[] a_bob;
+delete[] b_bob;
+delete[] msb1;
+delete[] msb2;
+delete[] msb_zero;
+delete[] mid_ax;
+delete[] b_SExt;
+delete[] msb_b_extend;
+delete[] z;
+delete[] Drelu_;
+delete[] DreluMSB;
+delete[] xhalf;
+delete[] abs_xhalf;
+delete[] neg_abs_xhalf;
+delete[] bitMul_wrap;
+delete[] out_last_bitwrap;
+delete[] delta;
+delete[] MUX_output_g;
+delete[] y;
+
+// 释放二维动态数组（如 spec_a 和 spec_b）
+if (party == ALICE) {
+    for (int i = 0; i < dim; i++) {
+        delete[] spec_a[i];
+        delete[] spec_b[i];
+    }
+}
+delete[] spec_a;
+delete[] spec_b;
+
+
+// 释放动态分配的对象
+delete prod;
+delete aux;
+delete trunc_oracle;
+delete ext;
     return 0;
 }
 

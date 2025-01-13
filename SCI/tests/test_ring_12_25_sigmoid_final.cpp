@@ -45,8 +45,10 @@ uint64_t lb = 10;
 uint64_t la = 10; // la=5 f=5,la=14,f=12
 uint64_t f = 12;
 uint64_t s = 6;
-uint64_t dim = 4096 * 16;
-// uint64_t dim = 1048576;
+// uint64_t dim = 4096 * 16;
+// uint64_t dim = 20485;
+// uint64_t init_input = 2074384;
+uint64_t dim = 1048576;
 uint64_t init_input = 2064384;
 // uint64_t dim = 1024;
 // uint64_t init_input = 0;
@@ -199,12 +201,17 @@ void DReLU_Eq(uint64_t *inA, uint8_t *b, uint8_t *b_, uint64_t dim, uint64_t bwl
         // std::cout << "m[" << i << "] = " << static_cast<int>(m[i]) << std::endl;
         y[i] = inA[i] & mask_l_sub1;
     }
+    std::cout << "mask_l_sub1 = " << mask_l_sub1 << std::endl;
     uint64_t *comp_eq_input = new uint64_t[dim];
+
     if (party == ALICE)
     {
         for (int i = 0; i < dim; i++)
         {
             comp_eq_input[i] = (mask_l_sub1 - y[i]) & mask_l_sub1;
+            // std::cout << "inA[" << i << "] = " << inA[i] << std::endl;
+            // std::cout << "y[" << i << "] = " << y[i] << std::endl;
+            // std::cout << "comp_eq_input[" << i << "] = " << comp_eq_input[i] << std::endl;
         }
     }
     else
@@ -212,17 +219,26 @@ void DReLU_Eq(uint64_t *inA, uint8_t *b, uint8_t *b_, uint64_t dim, uint64_t bwl
         for (int i = 0; i < dim; i++)
         {
             comp_eq_input[i] = y[i] & mask_l_sub1;
+            // std::cout << "inA[" << i << "] = " << inA[i] << std::endl;
+            // std::cout << "y[" << i << "] = " << y[i] << std::endl;
+            // std::cout << "comp_eq_input[" << i << "] = " << comp_eq_input[i] << std::endl;
         }
     }
+
     uint8_t *carry = new uint8_t[dim];
     uint8_t *res_eq = new uint8_t[dim];
-    mill_eq->compare_with_eq(carry, res_eq, comp_eq_input, dim, bwl - 1);
+    mill_eq->compare_with_eq(carry, res_eq, comp_eq_input, dim, bwl - 1, false);
+    for (int i = 0; i < dim; i++)
+    {
+        // std::cout << "carry[" << i << "] = " << static_cast<int>(carry[i]) << std::endl;
+        // std::cout << "res_eq[" << i << "] = " << static_cast<int>(res_eq[i]) << std::endl;
+    }
     if (party == ALICE)
     {
         for (int i = 0; i < dim; i++)
         {
-            // b[i] = carry[i] ^ 1 ^ m[i];
-            b[i] = carry[i] ^ m[i];
+            b[i] = carry[i] ^ 1 ^ m[i];
+            // b[i] = carry[i] ^ m[i];
         }
     }
     else
@@ -234,24 +250,9 @@ void DReLU_Eq(uint64_t *inA, uint8_t *b, uint8_t *b_, uint64_t dim, uint64_t bwl
     }
 
     aux->AND(res_eq, m, b_, dim);
-    if (party == ALICE)
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            // b[i] = carry[i] ^ 1 ^ m[i];
-            b[i] = carry[i] ^ m[i] ^ b_[i];
-        }
-    }
-    else
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            b[i] = carry[i] ^ m[i] ^ b_[i];
-        }
-    }
 }
 
-int third_interval(uint64_t *input_data, uint8_t *res_drelu_cmp, uint8_t *res_drelu_eq, uint8_t *res_eq)
+void third_interval(uint64_t *input_data, uint8_t *res_drelu_cmp, uint8_t *res_drelu_eq, uint8_t *res_eq)
 {
     mill_eq = new MillionaireWithEquality(party, iopack, otpack);
     trunc_oracle = new Truncation(party, iopack, otpack);
@@ -265,8 +266,8 @@ int third_interval(uint64_t *input_data, uint8_t *res_drelu_cmp, uint8_t *res_dr
     // uint8_t *res_eq = new uint8_t[dim];
     uint8_t *res_cmp = new uint8_t[dim];
     // TR
-    // uint64_t Comm_start = iopack->get_comm();
-    // auto time_start = std::chrono::high_resolution_clock::now();
+    uint64_t Comm_start = iopack->get_comm();
+    auto time_start = std::chrono::high_resolution_clock::now();
     // if (party == ALICE)
     // {
     //     for (int i = 0; i < dim; i++)
@@ -275,27 +276,14 @@ int third_interval(uint64_t *input_data, uint8_t *res_drelu_cmp, uint8_t *res_dr
     //     }
     // }
     uint64_t trun_start = iopack->get_comm();
-    trunc_oracle->truncate_and_reduce(dim, input_data, outtrunc, d, bwL); // test comm
-    uint64_t trun_end = iopack->get_comm();
-    // ERELU_EQ
-    // auto time_start = std::chrono::high_resolution_clock::now();
-    uint64_t DReLU_Eq_start = iopack->get_comm();
-    DReLU_Eq(outtrunc, res_drelu_cmp, res_drelu_eq, dim, bwL - d);
-    uint64_t DReLU_Eq_end = iopack->get_comm();
-    // auto time_end = std::chrono::high_resolution_clock::now();
-
-    // uint64_t addfor = static_cast<uint64_t>(pow(2, bwL - d));
-    // for (int i = 0; i < dim; i++)
-    // {
-    //     comp_eq_input[i] = (addfor + outtrunc[i]) & mask_bwL; // 这里应该mod 多少？
-    // }
-    uint64_t mask_l_sub1 = ((bwL - d - 1) == 64) ? ~0ULL : (1ULL << (bwL - d - 1)) - 1;
-    // auto time_start = std::chrono::high_resolution_clock::now();
+    trunc_oracle->truncate_and_reduce(dim, input_data, outtrunc, h, bwL); // test comm
+    DReLU_Eq(outtrunc, res_drelu_cmp, res_drelu_eq, dim, bwL - h);
+    uint64_t mask_l_sub1 = ((bwL - h) == 64) ? ~0ULL : (1ULL << (bwL - h)) - 1;
     if (party == ALICE)
     {
         for (int i = 0; i < dim; i++)
         {
-            comp_eq_input[i] = (mask_l_sub1 - outtrunc[i]) & mask_l_sub1;
+            comp_eq_input[i] = (mask_l_sub1 + 1 - outtrunc[i]) & mask_l_sub1;
         }
     }
     else
@@ -305,28 +293,7 @@ int third_interval(uint64_t *input_data, uint8_t *res_drelu_cmp, uint8_t *res_dr
             comp_eq_input[i] = outtrunc[i] & mask_l_sub1;
         }
     }
-    // uint64_t compare_with_eq_start = iopack->get_comm();
-    // mill_eq->compare_with_eq(res_cmp, res_eq, comp_eq_input, dim, bwL - d); //
-    eq->check_equality(res_eq, comp_eq_input, dim, bwL - d);
-    // uint64_t compare_with_eq_end = iopack->get_comm();
-    auto time_end = std::chrono::high_resolution_clock::now();
-
-    // auto time_end = std::chrono::high_resolution_clock::now();
-    uint64_t Comm_end = iopack->get_comm();
-    // std::cout << "Comm = " << (Comm_end - Comm_start) / dim * 8 << std::endl;
-    // std::cout << "Truncation = " << (trun_end - trun_start) / dim * 8 << std::endl;
-    // std::cout << "DReLU_Eq = " << (DReLU_Eq_end - DReLU_Eq_start) / dim * 8 << std::endl;
-
-    // auto duration = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start).count();
-    // std::cout << "Time elapsed: " << duration << " microseconds" << std::endl;
-    // for (int i = 0; i < dim; i++)
-    // {
-    //     std::cout << "outtrunc[" << i << "] = " << outtrunc[i] << std::endl;
-    //     std::cout << "res_cmp[" << i << "] = " << static_cast<int>(res_cmp[i]) << std::endl;
-    //     std::cout << "res_drelu_eq[" << i << "] = " << static_cast<int>(res_drelu_eq[i]) << std::endl; // right
-    // }
-
-    return 1;
+    eq->check_equality(res_eq, comp_eq_input, dim, bwL - h);
 }
 
 //////////////////////
@@ -354,7 +321,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
 
 
 
-        uint64_t *a_alice = new uint64_t[dim];
+    uint64_t *a_alice = new uint64_t[dim];
     uint64_t *b_alice = new uint64_t[dim];
 
     for (size_t i = 0; i < dim; i++)
@@ -503,7 +470,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     {
         for (int i = 0; i < dim; i++)
         {
-            neg_inA[i] = ((-inA[i]) & mask_bwL); // 取反
+            neg_inA[i] = ((-inA[i]+1048575) & mask_bwL); // 取反
         }
         select_share(Drelu, inA, neg_inA, EMUX_output_x, dim, bwL); // step 10
         // aux->multiplexerabs(Drelu, inA, EMUX_output_x, dim, bwL, bwL);
@@ -512,7 +479,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     {
         for (int i = 0; i < dim; i++)
         {
-            neg_inB[i] = ((-inB[i]) & mask_bwL); // 取反
+            neg_inB[i] = ((-inB[i]+1048576) & mask_bwL); // 取反
         }
         select_share(Drelu, inB, neg_inB, EMUX_output_x, dim, bwL);
         // aux->multiplexerabs(Drelu, inB, EMUX_output_x, dim, bwL, bwL);
@@ -803,13 +770,14 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
 
     uint64_t *one_f = new uint64_t[dim];
     uint64_t *z_or_one = new uint64_t[dim];
+    uint64_t pow_f = pow(2, f);
     for (int i = 0; i < dim; i++)
     {
         Drelu_[i] = (outb_star[i] + outb_sharp[i]) & 1;
-        one_f[i] = 0.5 * pow(2, f);
+        one_f[i] = 0.5 * pow_f;
     }
 
-    select_share(Drelu_, one_f, z, z_or_one, dim, bwL); // step 20 ss
+    select_share(Drelu_, z,one_f , z_or_one, dim, bwL); // step 20 ss
 
     int64_t STEP15_comm_start = iopack->get_comm();
     // online
@@ -850,26 +818,9 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         {
             neg_z[i] = (-z_or_one[i] + 2048) & mask_bwL;
         }
-        select_share(Drelu, z_or_one, neg_z, di_abs_z_or_one, dim, bwL); // step 21 ss
+        select_share(outb, z_or_one, neg_z, di_abs_z_or_one, dim, bwL); // step 21 ss
     }
 
-    for (int i = 0; i < dim; i++)
-    {
-        // std::cout << "Drelu[" << i << "] = " << Drelu[i] << std::endl;
-        // std::cout << "abs_xhalf[" << i << "] = " << abs_xhalf[i] << std::endl;
-    }
-
-    int64_t STEP15_comm_end = iopack->get_comm();
-    // std::cout << "xhalf[" << 0 << "] = " << xhalf[0] << std::endl;
-    // std::cout << "abs_xhalf[" << 0 << "] = " << abs_xhalf[0] << std::endl;
-
-    std::cout << "\n=========STEP16 get delta = z-x_half ===========" << std::endl;
-
-    uint64_t *delta = new uint64_t[dim];
-    for (int i = 0; i < dim; i++)
-    {
-        delta[i] = (abs_xhalf[i] - z[i]) & mask_bwL;
-    }
 
     std::cout << "\n=========STEP17 |g|=delta_ + x_half ===========" << std::endl;
     // uint64_t *delta_ = new uint64_t[dim];
@@ -977,7 +928,6 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         // // plt::legend();
         // plt::save("/home/zhaoqian/EzPC/test.svg");
         // plt::show();
-
         uint64_t *alice_comm = new uint64_t[1];
         iopack->io->recv_data(alice_comm, 1 * sizeof(uint64_t));
 
@@ -989,7 +939,6 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
             std::cerr << "Error: Could not open file for writing." << std::endl;
             return 1;
         }
-
         // 写入CSV头
         // file << "la,ld,average ULP, MAX ULP , Total comm\n";
 
@@ -1005,23 +954,6 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
         //     file << "GELU," << x_real[i] << "," << y_real[i] << "\n";
         // }
     }
-    uint64_t crossterm_comm_start = iopack->get_comm();
-    uint64_t *outCC = new uint64_t[dim];
-    trunc_oracle->cross_term(dim, inA, inB, outCC, la, bwL, la + bwL);
-    uint64_t crossterm_comm_end = iopack->get_comm();
-    std::cout << "crossterm_comm: " << crossterm_comm_end - crossterm_comm_start << std::endl;
-
-    uint64_t crossterm_reverse_comm_start = iopack->get_comm();
-    uint64_t *outCCC = new uint64_t[dim];
-    trunc_oracle->cross_term_reverse(dim, inA, inB, outCCC, la, bwL, la + bwL);
-    uint64_t crossterm_reverse_comm_end = iopack->get_comm();
-    std::cout << "cross_term_reverse: " << crossterm_reverse_comm_end - crossterm_reverse_comm_start << std::endl;
-
-    uint64_t unsigned_mul_reverse_comm_start = iopack->get_comm();
-    uint64_t *outCCCC = new uint64_t[dim];
-    trunc_oracle->unsigned_mul(dim, inA, inB, outCCCC, la, bwL, la + bwL);
-    uint64_t unsigned_mul_reverse_comm_end = iopack->get_comm();
-    std::cout << "unsigned_mul: " << unsigned_mul_reverse_comm_end - unsigned_mul_reverse_comm_start << std::endl;
 
     uint64_t *outC = new uint64_t[dim];
     uint8_t *msbtest = new uint8_t[dim];
@@ -1087,15 +1019,15 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     ///////////输出时间和通信
 
     // cout << "STEP3 MSBnew Bytes Sent: " << (STEP3_comm_end - STEP3_comm_start) / dim * 8 << " bits" << endl;
-    cout << "STEP4 Select_share Bytes Sent: " << (STEP4_comm_end - STEP4_comm_start) / dim * 8 << " bits" << endl;
-    cout << "STEP5 TR Bytes Sent: " << (STEP5_comm_end - STEP5_comm_start) / dim * 8 << " bits" << endl;
-    // cout << "STEP6 LUT*2 Bytes Sent: " << (STEP6_comm_end - STEP6_comm_start) / dim * 8 << " bits" << endl;
-    cout << "STEP7 hadamard_product Bytes Sent: " << (STEP7_comm_end - STEP7_comm_start) / dim * 8 << " bits" << endl;
-    cout << "STEP8 truncate_and_reduce Bytes Sent: " << (STEP8_comm_end - STEP8_comm_start) / dim * 8 << " bits" << endl;
-    std::cout << "s_extend_comm: " << (s_extend_comm_end - s_extend_comm_start) / dim * 8 << std::endl;
-    cout << "STEP14 DRELUsec Bytes Sent: " << (STEP14_comm_end - STEP14_comm_start) / dim * 8 << " bits" << endl;
-    cout << "STEP15 clear_MSB_to_Wrap_bitMul and one trunc Bytes Sent: " << (STEP15_comm_end - STEP15_comm_start) / dim * 8 << " bits" << endl;
-    cout << "STEP21 select_share Bytes Sent: " << (STEP21_comm_end - STEP21_comm_start) / dim * 8 << " bits" << endl;
+    // cout << "STEP4 Select_share Bytes Sent: " << (STEP4_comm_end - STEP4_comm_start) / dim * 8 << " bits" << endl;
+    // cout << "STEP5 TR Bytes Sent: " << (STEP5_comm_end - STEP5_comm_start) / dim * 8 << " bits" << endl;
+    // // cout << "STEP6 LUT*2 Bytes Sent: " << (STEP6_comm_end - STEP6_comm_start) / dim * 8 << " bits" << endl;
+    // cout << "STEP7 hadamard_product Bytes Sent: " << (STEP7_comm_end - STEP7_comm_start) / dim * 8 << " bits" << endl;
+    // cout << "STEP8 truncate_and_reduce Bytes Sent: " << (STEP8_comm_end - STEP8_comm_start) / dim * 8 << " bits" << endl;
+    // std::cout << "s_extend_comm: " << (s_extend_comm_end - s_extend_comm_start) / dim * 8 << std::endl;
+    // cout << "STEP14 DRELUsec Bytes Sent: " << (STEP14_comm_end - STEP14_comm_start) / dim * 8 << " bits" << endl;
+    // cout << "STEP15 clear_MSB_to_Wrap_bitMul and one trunc Bytes Sent: " << (STEP15_comm_end - STEP15_comm_start) / dim * 8 << " bits" << endl;
+    // cout << "STEP21 select_share Bytes Sent: " << (STEP21_comm_end - STEP21_comm_start) / dim * 8 << " bits" << endl;
     // cout << "STEP3 Bytes Sent: " << (comm_end - comm_start) << "bytes" << endl;
     // cout << "STEP3 Bytes Sent: " << (comm_end - comm_start) << "bytes" << endl;
     // cout << "STEP3 Bytes Sent: " << (comm_end - comm_start) << "bytes" << endl;
@@ -1107,9 +1039,56 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     cout << "Total time: "
          << chrono::duration_cast<chrono::milliseconds>(time_end - time_start).count()
          << " ms" << endl;
-    delete[] inA;
-    delete[] inB;
-    delete[] outax;
+delete[] inA;
+delete[] inB;
+delete[] outax;
+delete[] outb;
+delete[] outb_star;
+delete[] outb_sharp;
+delete[] inA_h;
+delete[] inB_h;
+delete[] Drelu;
+delete[] msbA;
+delete[] msbB;
+delete[] wrap;
+delete[] EMUX_output_x;
+delete[] neg_inA;
+delete[] neg_inB;
+delete[] EMUX_output_x1;
+delete[] EMUX_output_x1_h;
+delete[] outtrunc;
+delete[] outtrunc1;
+delete[] outtrunc_a;
+
+// 释放二维动态数组 spec_a 和 spec_b
+if (party == ALICE) {
+    for (int i = 0; i < dim; i++) {
+        delete[] spec_a[i];
+        delete[] spec_b[i];
+    }
+}
+delete[] spec_a;
+delete[] spec_b;
+
+delete[] b_bob;
+delete[] msb1;
+delete[] msb2;
+delete[] msb_zero;
+delete[] mid_ax;
+delete[] b_SExt;
+delete[] msb_b_extend;
+delete[] z;
+delete[] Drelu_;
+delete[] DreluMSB;
+delete[] one_f;
+delete[] z_or_one;
+delete[] di_abs_z_or_one;
+delete[] abs_xhalf;
+delete[] bitMul_wrap;
+delete[] out_last_bitwrap;
+delete[] y;
+delete[] outC;
+delete[] msbtest;
     return 1;
 }
 
@@ -1140,23 +1119,43 @@ int main(int argc, char **argv)
         {4, 9},
         {4, 10},
         {4, 11},
-        {4, 12},
+        // {4, 12},
         {5, 9},
         {5, 10},
-        {5, 11},
+        // {5, 11},
         {5, 12},
-        {6, 9},
+        // {6, 9},
         {6, 10},
         {6, 11},
-        {6, 12},
-        {7, 9},
+        // {6, 12},
+        // {7, 9},
         {7, 10},
         {7, 11},
         {7, 12},
-        {8, 9},
-        {8, 10},
-        {8, 11},
+        // {8, 9},
+        // {8, 10},
+        // {8, 11},
         {8, 12}};
+        // {4, 9},
+        // {4, 10},
+        // {4, 11},
+        // {4, 12},
+        // {5, 9},
+        // {5, 10},
+        // {5, 11},
+        // {5, 12},
+        // {6, 9},
+        // {6, 10},
+        // {6, 11},
+        // {6, 12},
+        // {7, 9},
+        // {7, 10},
+        // {7, 11},
+        // {7, 12},
+        // {8, 9},
+        // {8, 10},
+        // {8, 11},
+        // {8, 12}};
     // std::vector<std::pair<uint64_t, uint64_t>> la_lb_pairs = {
     //     {8, 12}, {7, 12}, {6, 12}, {6, 11}, {5, 12}, {5, 10}, {4, 12}, {4, 10}};
 

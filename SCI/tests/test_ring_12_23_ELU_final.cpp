@@ -184,67 +184,51 @@ void select_share(uint8_t *sel, uint64_t *x, uint64_t *y, uint64_t *output, int3
     }
 }
 
-void DReLU_Eq(uint64_t *inA, uint8_t *b, uint8_t *b_, uint64_t dim, uint64_t bwl)
+void DReLU_Eq(uint64_t *inA, uint8_t *b, uint8_t *b_, uint64_t dim, int bwl)
 {
-    uint8_t *m = new uint8_t[dim];
-    uint64_t *y = new uint64_t[dim];
-    uint64_t mask_l_sub1 = ((bwl - 1) == 64) ? ~0ULL : (1ULL << (bwl - 1)) - 1;
+  uint8_t *m = new uint8_t[dim];
+  uint64_t *y = new uint64_t[dim];
+  uint64_t mask_l_sub1 = ((bwl - 1) == 64) ? ~0ULL : (1ULL << (bwl - 1)) - 1;
+  for (int i = 0; i < dim; i++)
+  {
+    m[i] = inA[i] >> (bwl - 1);
+    y[i] = inA[i] & mask_l_sub1;
+  }
+  uint64_t *comp_eq_input = new uint64_t[dim];
+  if (party == ALICE)
+  {
     for (int i = 0; i < dim; i++)
     {
-        m[i] = inA[i] >> (bwl - 1);
-        // std::cout << "m[" << i << "] = " << static_cast<int>(m[i]) << std::endl;
-        y[i] = inA[i] & mask_l_sub1;
+      comp_eq_input[i] = (mask_l_sub1 - y[i]) & mask_l_sub1;
     }
-    uint64_t *comp_eq_input = new uint64_t[dim];
-    if (party == ALICE)
+  }
+  else
+  {
+    for (int i = 0; i < dim; i++)
     {
-        for (int i = 0; i < dim; i++)
-        {
-            comp_eq_input[i] = (mask_l_sub1 - y[i]) & mask_l_sub1;
-        }
+      comp_eq_input[i] = y[i] & mask_l_sub1;
     }
-    else
+  }
+  uint8_t *carry = new uint8_t[dim];
+  uint8_t *res_eq = new uint8_t[dim];
+  mill_eq->compare_with_eq(carry, res_eq, comp_eq_input, dim, bwl - 1,false);
+  if (party == ALICE)
+  {
+    for (int i = 0; i < dim; i++)
     {
-        for (int i = 0; i < dim; i++)
-        {
-            comp_eq_input[i] = y[i] & mask_l_sub1;
-        }
+      b[i] = carry[i] ^ 1 ^ m[i];
+      // b[i] = carry[i] ^ m[i];
     }
-    uint8_t *carry = new uint8_t[dim];
-    uint8_t *res_eq = new uint8_t[dim];
-    mill_eq->compare_with_eq(carry, res_eq, comp_eq_input, dim, bwl - 1);
-    if (party == ALICE)
+  }
+  else
+  {
+    for (int i = 0; i < dim; i++)
     {
-        for (int i = 0; i < dim; i++)
-        {
-            // b[i] = carry[i] ^ 1 ^ m[i];
-            b[i] = carry[i] ^ m[i];
-        }
+      b[i] = carry[i] ^ m[i];
     }
-    else
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            b[i] = carry[i] ^ m[i];
-        }
-    }
+  }
 
-    aux->AND(res_eq, m, b_, dim);
-    if (party == ALICE)
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            // b[i] = carry[i] ^ 1 ^ m[i];
-            b[i] = carry[i] ^ m[i] ^ b_[i];
-        }
-    }
-    else
-    {
-        for (int i = 0; i < dim; i++)
-        {
-            b[i] = carry[i] ^ m[i] ^ b_[i];
-        }
-    }
+  aux->AND(res_eq, m, b_, dim);
 }
 
 int second_interval(uint64_t *input_data, uint8_t *res_drelu_cmp, uint8_t *res_drelu_eq)
@@ -799,9 +783,50 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     // cout << "Total Bytes Sent: " << (Comm_end - Comm_start) / dim * 8 - 64 - 128 << " bits" << endl;
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count();
     std::cout << "Time elapsed: " << duration << " ms" << std::endl;
-    delete[] inA;
-    delete[] inB;
-    delete[] outax;
+delete[] a_alice;
+delete[] b_alice;
+delete[] inA;
+delete[] inB;
+delete[] outax;
+delete[] outb;
+delete[] outb_star;
+delete[] input_cut_h;
+delete[] comp_eq_input;
+delete[] eight_bit_wrap;
+delete[] input_lower_h;
+delete[] outtrunc;
+delete[] outtrunc1;
+delete[] outtrunc_a;
+delete[] a_bob;
+delete[] b_bob;
+delete[] msb1;
+delete[] msb2;
+delete[] mid_ax;
+delete[] b_SExt;
+delete[] msb_b_extend;
+delete[] z;
+delete[] non_negative1_part;
+delete[] neg1;
+delete[] choose_negative_part;
+delete[] y;
+
+// 二维动态数组释放（如 spec_a 和 spec_b）
+if (party == ALICE) {
+    for (int i = 0; i < dim; i++) {
+        delete[] spec_a[i];
+        delete[] spec_b[i];
+    }
+}
+delete[] spec_a;
+delete[] spec_b;
+
+// 释放动态分配的对象
+delete mill_eq;
+delete trunc_oracle;
+delete aux;
+delete eq;
+delete ext;
+delete prod;
 
     return 1;
 }

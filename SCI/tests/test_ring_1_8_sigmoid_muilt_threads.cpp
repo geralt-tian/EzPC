@@ -123,9 +123,9 @@ int main(int argc, char **argv)
     amap.parse(argc, argv);
 
     assert(num_threads <= MAX_THREADS);
-    int32_t la = 4;
+    int32_t la = 5;
     int32_t lb = 9;
-    // int32_t la = 5;
+    // int32_t la = 6;
     // int32_t lb = 10;
     // int32_t la = 8;
     // int32_t lb = 12;
@@ -235,8 +235,8 @@ int main(int argc, char **argv)
             double dbl_y = (signed_val(y0[i] + y[i], bw_y)) / double(1LL << s_y);
             double sigmoid_x = calculate_sigmoid(dbl_x);
             uint64_t err = computeULPErr(dbl_y, sigmoid_x, s_y);
-            cout << "ULP["<<i<<"] Error: " << dbl_x << "," << dbl_y << "," << sigmoid_x << ","
-                 << err << endl;
+            // cout << "ULP["<<i<<"] Error: " << dbl_x << "," << dbl_y << "," << sigmoid_x << ","
+            //      << err << endl;
             total_err += err;
             max_ULP_err = std::max(max_ULP_err, err);
         }

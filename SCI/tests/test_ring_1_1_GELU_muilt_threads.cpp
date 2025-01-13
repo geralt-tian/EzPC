@@ -105,9 +105,9 @@ int main(int argc, char **argv)
     int32_t la = 4;
     int32_t lb = 9;
     // int32_t la = 5;
-    // int32_t lb = 10;
-    // int32_t la = 8;
-    // int32_t lb = 12;
+    // int32_t lb = 11;
+    // int32_t la = 7;
+    // int32_t lb = 11;
     int32_t s = 6;
     int32_t f = 12;
     int32_t bwL = 21;
@@ -214,8 +214,8 @@ int main(int argc, char **argv)
             double dbl_y = (signed_val(y0[i] + y[i], bw_y)) / double(1LL << s_y);
             double gelu_x = calculate_GELU(dbl_x);
             uint64_t err = computeULPErr(dbl_y, gelu_x, s_y);
-            cout << "ULP["<<i<<"] Error: " << dbl_x << "," << dbl_y << "," << gelu_x << ","
-                 << err << endl;
+            // cout << "ULP["<<i<<"] Error: " << dbl_x << "," << dbl_y << "," << gelu_x << ","
+            //      << err << endl;
             total_err += err;
             max_ULP_err = std::max(max_ULP_err, err);
         }
