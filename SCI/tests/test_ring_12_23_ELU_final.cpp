@@ -44,7 +44,7 @@ MultMode mode = MultMode::None; // 乘法模式
 uint64_t lb = 10;
 uint64_t la = 10; // la=5 f=5,la=14,f=12
 uint64_t f = 12;
-uint64_t s = 6;
+uint64_t s = 7;
 
 uint64_t h = f + 3;
 uint64_t d = f + 3;
@@ -254,12 +254,12 @@ int second_interval(uint64_t *input_data, uint8_t *res_drelu_cmp, uint8_t *res_d
     //     }
     // }
     uint64_t trun_start = iopack->get_comm();
-    trunc_oracle->truncate_and_reduce(dim, input_data, outtrunc, d, bwL); // test comm
+    trunc_oracle->truncate_and_reduce(dim, input_data, outtrunc, h, bwL); // test comm
     uint64_t trun_end = iopack->get_comm();
     // ERELU_EQ
     // auto time_start = std::chrono::high_resolution_clock::now();
     uint64_t DReLU_Eq_start = iopack->get_comm();
-    DReLU_Eq(outtrunc, res_drelu_cmp, res_drelu_eq, dim, bwL - d);
+    DReLU_Eq(outtrunc, res_drelu_cmp, res_drelu_eq, dim, bwL - h);
     uint64_t DReLU_Eq_end = iopack->get_comm();
     // auto time_end = std::chrono::high_resolution_clock::now();
 
@@ -393,7 +393,7 @@ int init_test(uint64_t i, uint64_t j, uint64_t k, uint64_t l)
     // uint64_t s = 7;
     uint64_t mask_s = ((s) == 64 ? -1 : ((1ULL << (s)) - 1));
     uint64_t mask_h = (h == 64) ? ~0ULL : (1ULL << h) - 1;
-
+    prod = new LinearOT(party, iopack, otpack);
     uint64_t *inA = new uint64_t[dim];
     uint64_t *inB = new uint64_t[dim];
 
@@ -851,29 +851,131 @@ int main(int argc, char **argv)
     // std::cout << "Parsed dimension (dim) = " << dim << std::endl;
     iopack = new IOPack(party, port, "127.0.0.1");
     otpack = new OTPack(iopack, party);
-    prod = new LinearOT(party, iopack, otpack);
+    // prod = new LinearOT(party, iopack, otpack);
 
-    std::vector<std::pair<uint64_t, uint64_t>> la_lb_pairs = {
-        {4, 9},
-        {4, 10},
-        {4, 11},
-        {4, 12},
-        {5, 9},
-        {5, 10},
-        {5, 11},
-        {5, 12},
-        {6, 9},
-        {6, 10},
-        {6, 11},
-        {6, 12},
-        {7, 9},
-        {7, 10},
-        {7, 11},
-        {7, 12},
-        {8, 9},
-        {8, 10},
-        {8, 11},
-        {8, 12}};
+        std::vector<std::pair<uint64_t, uint64_t>> la_lb_pairs = {
+//     {3, 3},
+// {3, 4},
+// {3, 5},
+// {3, 6},
+// {3, 7},
+// {3, 8},
+// {3, 9},
+// {3, 10},
+// {3, 11},
+// {3, 12},
+// {3, 13},
+// {4, 3},
+// {4, 4},
+// {4, 5},
+// {4, 6},
+// {4, 7},
+// {4, 8},
+{4, 9},
+{4, 10},
+{4, 11},
+// {4, 12},
+// {4, 13},
+// {5, 3},
+// {5, 4},
+// {5, 5},
+// {5, 6},
+// {5, 7},
+// {5, 8},
+// {5, 9},
+// {5, 10},
+{5, 11},
+// {5, 12},
+// {5, 13},
+// {6, 3},
+// {6, 4},
+// {6, 5},
+// {6, 6},
+// {6, 7},
+// {6, 8},
+// {6, 9},
+// {6, 10},
+{6, 11},
+{6, 12},
+{6, 13},
+// {7, 3},
+// {7, 4},
+// {7, 5},
+// {7, 6},
+// {7, 7},
+// {7, 8},
+// {7, 9},
+// {7, 10},
+// {7, 11},
+// {7, 12},
+// {7, 13},
+// {8, 3},
+// {8, 4},
+// {8, 5},
+// {8, 6},
+// {8, 7},
+// {8, 8},
+// {8, 9},
+// {8, 10},
+// {8, 11},
+// {8, 12},
+{8, 13},
+// {9, 3},
+// {9, 4},
+// {9, 5},
+// {9, 6},
+// {9, 7},
+// {9, 8},
+// {9, 9},
+// {9, 10},
+// {9, 11},
+// {9, 12},
+// {9, 13},
+// {10, 3},
+// {10, 4},
+// {10, 5},
+// {10, 6},
+// {10, 7},
+// {10, 8},
+// {10, 9},
+// {10, 10},
+// {10, 11},
+// {10, 12},
+// {10, 13},
+// {11, 3},
+// {11, 4},
+// {11, 5},
+// {11, 6},
+// {11, 7},
+// {11, 8},
+// {11, 9},
+// {11, 10},
+// {11, 11},
+// {11, 12},
+// {11, 13},
+// {12, 3},
+// {12, 4},
+// {12, 5},
+// {12, 6},
+// {12, 7},
+// {12, 8},
+// {12, 9},
+// {12, 10},
+// {12, 11},
+// {12, 12},
+// {12, 13},
+// {13, 3},
+// {13, 4},
+// {13, 5},
+// {13, 6},
+// {13, 7},
+// {13, 8},
+// {13, 9},
+// {13, 10},
+// {13, 11},
+// {13, 12},
+// {13, 13}
+};
         // {8, 12}, {7, 12}, {6, 12}, {6, 11}, {5, 12}, {5, 10}, {4, 12}, {4, 10}};
 
     for (const auto &pair : la_lb_pairs)
@@ -885,14 +987,14 @@ int main(int argc, char **argv)
         {
             for (uint64_t k = 12; k < 13; k++)
             {
-                if ((la <= k) & (lb <= k))
-                {
-                    for (int i = 0; i < 5; i++)
+                // if ((la <= k) & (lb <= k))
+                // {
+                    for (int i = 0; i < 1; i++)
                     {
                         init_test(la, lb, s, k);
                     }
                     // std::cout << "la = " << la << ", lb = " << lb << ", s = " << s << ", k = " << k << std::endl;
-                }
+                // }
             }
         }
     }
